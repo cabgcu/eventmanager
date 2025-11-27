@@ -171,8 +171,8 @@
     // 1. STATE & CONFIG
     // ==============================================================
     
-    // ⚠️ UPDATED URL FROM YOUR LOGS
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzqG3BVJ3ZqhbPIeJXL_Ghf5djjudFwPHRKx3SiX2lWAg4YauU-lDnWOSGLHY3jK7Yd/exec";
+    // ⚠️ UPDATE THIS IF YOUR URL CHANGED AFTER DEPLOYING THE NEW SCRIPT
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwWvlmdyVeefYUaGkDhql8jpVJTjaZCZ0wlJ42BrWdJvtuneIglOPq9VuWoOKInTW6y/exec";
 
     // Load from LocalStorage immediately for fast paint
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
@@ -203,7 +203,7 @@
     }
 
     // ==============================================================
-    // 3. CLOUD SYNC ENGINE (Google Sheets)
+    // 3. CLOUD SYNC ENGINE (Google Sheets + Drive)
     // ==============================================================
 
     function startCloudSync() {
@@ -245,7 +245,7 @@
         setTimeout(() => {
             btn.innerText = oldText;
             btn.disabled = false;
-            alert("Sync command sent to Google Sheets. Check your spreadsheet in a few seconds.");
+            alert("Sync command sent. Check spreadsheet.");
         }, 1000);
     }
 
@@ -261,20 +261,15 @@
                 events: eventsData
             };
             
-            // FIX: Using 'text/plain' to avoid CORS preflight checks completely.
-            // Google Script interprets 'text/plain' correctly with the robust parsing script.
-            
+            // Using text/plain + no-cors to prevent browser preflight blocks.
+            // This is fire-and-forget for saving events.
             await fetch(CLOUD_URL, {
                 method: 'POST',
                 mode: 'no-cors', 
-                headers: {
-                    'Content-Type': 'text/plain' 
-                },
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify(payload)
             });
-            
             console.log("Sent save request to cloud");
-            
         } catch (e) {
             console.error("Sync Error", e);
             document.getElementById('sync-text').innerText = "Sync Error";
@@ -287,23 +282,68 @@
         }
     }
 
+    // UPLOAD: Send file to Drive (Special logic)
+    async function uploadToDrive(file, uiCallback) {
+        if (!CLOUD_URL) return null;
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64 = reader.result.split(',')[1];
+                const payload = {
+                    action: 'upload',
+                    fileName: file.name,
+                    mimeType: file.type,
+                    fileData: base64
+                };
+
+                try {
+                    uiCallback('Uploading...');
+                    
+                    // Note: We REMOVE 'no-cors' here because we MUST read the response (the file URL)
+                    // If CORS issues appear here, it means the Google Script didn't deploy correctly with "Anyone" access.
+                    const res = await fetch(CLOUD_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const json = await res.json();
+                    
+                    if (json.success) {
+                        uiCallback('Done');
+                        resolve(json.url);
+                    } else {
+                        uiCallback('Failed');
+                        console.error("Upload failed server-side:", json);
+                        resolve(null);
+                    }
+                } catch (e) {
+                    uiCallback('Error');
+                    console.error("Upload failed network:", e);
+                    alert("Upload failed. Ensure Script is deployed with 'Anyone' access.");
+                    resolve(null);
+                }
+            };
+        });
+    }
+
     // PULL: Get state from Sheets
     async function loadFromCloud() {
-        if (!CLOUD_URL || isSyncing) return; // Don't interrupt a save
-        
+        if (!CLOUD_URL || isSyncing) return;
         try {
             const res = await fetch(CLOUD_URL);
             const data = await res.json();
             
             if (data.events && Array.isArray(data.events)) {
-                // Determine if we should update DOM
                 const currentStr = JSON.stringify(eventsData);
                 const newStr = JSON.stringify(data.events);
 
                 if (currentStr !== newStr) {
                     console.log("New data found, updating...");
                     eventsData = data.events;
-                    saveLocal(false); // Persist but don't re-trigger sync
+                    saveLocal(false);
                     renderEvents(); 
                 }
             }
@@ -351,11 +391,9 @@
         });
 
         if (editingEventId) {
-            // Update existing
             const index = eventsData.findIndex(e => e.id === editingEventId);
             if (index !== -1) eventsData[index] = newEvent;
         } else {
-            // Add new
             eventsData.push(newEvent);
         }
 
@@ -385,7 +423,6 @@
         if (ev) {
             if (!ev.deadlines) ev.deadlines = {};
             if (!ev.deadlines[key]) ev.deadlines[key] = {};
-            
             ev.deadlines[key].completed = !ev.deadlines[key].completed;
             saveLocal();
             renderEvents();
@@ -414,7 +451,6 @@
         
         MILESTONE_KEYS.forEach(key => {
             const th = document.createElement('th');
-            // FIX: Removed border-l border-slate-700 to perfectly match the seamless style of other headers
             th.className = "px-4 py-3 min-w-[130px] bg-slate-900 text-center uppercase tracking-wider text-slate-100 font-bold";
             th.textContent = columnLabels[key] || key;
             row.insertBefore(th, refNode);
@@ -433,7 +469,6 @@
             document.getElementById('empty-state').classList.remove('flex');
         }
 
-        // Sort by date
         const sorted = [...eventsData].sort((a,b) => {
             if(!a.date) return 1;
             if(!b.date) return -1;
@@ -458,7 +493,6 @@
                 <td class="px-4 py-3 text-slate-600 font-mono text-xs">$${(ev.budget || 0).toLocaleString()}</td>
             `;
 
-            // Milestone Columns
             MILESTONE_KEYS.forEach(key => {
                 const m = ev.deadlines?.[key] || {};
                 const status = getDeadlineStatus(m.date, m.completed);
@@ -479,7 +513,6 @@
                 `;
             });
 
-            // End Columns
             html += `
                 <td class="px-4 py-3 border-l border-slate-100">
                     <span class="inline-block bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded-full font-medium whitespace-nowrap">
@@ -525,7 +558,6 @@
     function formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
-        // Correct for timezone offset to prevent one-day-off errors
         const userTimezoneOffset = d.getTimezoneOffset() * 60000;
         const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
         return `${adjustedDate.getMonth() + 1}/${adjustedDate.getDate()}`;
@@ -572,8 +604,6 @@
         const title = document.getElementById('event-modal-title');
         
         modal.classList.remove('hidden');
-        
-        // REMOVED switchTab('details') from here - it caused the crash because content wasn't rendered yet!
 
         let data = {};
         if (id) {
@@ -667,7 +697,7 @@
             <div id="form-tab-files" class="hidden space-y-4">
                 <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                     <span class="text-lg">ℹ️</span>
-                    <p>Files are stored as metadata. To protect app performance, large file uploads are simulated. Name and size are saved.</p>
+                    <p>Files are uploaded securely to your Google Drive "Arts Manager Files" folder.</p>
                 </div>
                 ${renderFileCategories()}
             </div>
@@ -737,14 +767,19 @@
                     ${(tempFiles[cat.id] && tempFiles[cat.id].length > 0) ? 
                         tempFiles[cat.id].map(f => `
                             <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 overflow-hidden">
                                     <span class="text-lg">📄</span>
-                                    <div>
-                                        <div class="text-xs font-bold text-slate-800">${f.name}</div>
-                                        <div class="text-[10px] text-slate-400">${f.size} • ${f.date}</div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-slate-800 truncate">
+                                            ${f.url ? `<a href="${f.url}" target="_blank" class="text-blue-600 hover:underline">${f.name}</a>` : f.name}
+                                        </div>
+                                        <div class="text-[10px] text-slate-400">${f.size || 'Drive File'} • ${f.date}</div>
                                     </div>
                                 </div>
-                                <button onclick="removeFile('${cat.id}', '${f.id}')" class="text-red-400 hover:text-red-600 p-1">✕</button>
+                                <div class="flex items-center gap-2">
+                                    ${f.status === 'uploading' ? '<span class="text-[10px] text-purple-600 font-bold animate-pulse">Uploading...</span>' : ''}
+                                    <button onclick="removeFile('${cat.id}', '${f.id}')" class="text-red-400 hover:text-red-600 p-1">✕</button>
+                                </div>
                             </div>
                         `).join('') 
                     : '<div class="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg text-xs text-slate-400">No files uploaded yet</div>'}
@@ -755,30 +790,62 @@
 
     function attachFileHandlers() {
         document.querySelectorAll('.file-input').forEach(input => {
-            input.addEventListener('change', (e) => {
+            input.addEventListener('change', async (e) => {
                 const cat = e.target.dataset.cat;
                 const file = e.target.files[0];
                 if (!file) return;
 
+                // Create a temporary ID and visual state
+                const tempId = 'f_' + Math.random().toString(36).substr(2, 9);
+                
                 const newFile = {
-                    id: 'f_' + Math.random().toString(36).substr(2, 9),
+                    id: tempId,
                     name: file.name,
                     size: (file.size / 1024).toFixed(1) + ' KB',
                     date: new Date().toLocaleDateString(),
-                    type: file.type
+                    type: file.type,
+                    status: 'uploading',
+                    url: null
                 };
 
                 if (!tempFiles[cat]) tempFiles[cat] = [];
                 tempFiles[cat].push(newFile);
                 
+                // Refresh UI to show "Uploading..."
                 document.getElementById('form-tab-files').innerHTML = `
                     <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                         <span class="text-lg">ℹ️</span>
-                        <p>Files are stored as metadata. To protect app performance, large file uploads are simulated. Name and size are saved.</p>
+                        <p>Files are uploaded securely to your Google Drive.</p>
                     </div>
                     ${renderFileCategories()}
                 `;
-                attachFileHandlers();
+                
+                // PERFORM THE UPLOAD
+                const driveUrl = await uploadToDrive(file, (status) => {
+                   // Optional progress callback if we wanted detailed percentages
+                });
+                
+                // Update state with URL
+                const targetFile = tempFiles[cat].find(f => f.id === tempId);
+                if (targetFile) {
+                    if (driveUrl) {
+                        targetFile.url = driveUrl;
+                        targetFile.status = 'done';
+                    } else {
+                        targetFile.name += " (Upload Failed)";
+                        targetFile.status = 'error';
+                    }
+                }
+                
+                // Re-render final state
+                document.getElementById('form-tab-files').innerHTML = `
+                    <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
+                        <span class="text-lg">ℹ️</span>
+                        <p>Files are uploaded securely to your Google Drive.</p>
+                    </div>
+                    ${renderFileCategories()}
+                `;
+                attachFileHandlers(); // Re-attach listener
             });
         });
     }
@@ -788,7 +855,7 @@
         document.getElementById('form-tab-files').innerHTML = `
             <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                 <span class="text-lg">ℹ️</span>
-                <p>Files are stored as metadata. To protect app performance, large file uploads are simulated. Name and size are saved.</p>
+                <p>Files are uploaded securely to your Google Drive.</p>
             </div>
             ${renderFileCategories()}
         `;
