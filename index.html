@@ -392,20 +392,25 @@
 
     function formatDate(dateStr) {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
-        const userTimezoneOffset = d.getTimezoneOffset() * 60000;
-        const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
-        return `${adjustedDate.getMonth() + 1}/${adjustedDate.getDate()}`;
+        // Fix Timezone Issue: Split string directly to avoid UTC conversion
+        const [y, m, d] = dateStr.split('-');
+        return `${parseInt(m)}/${parseInt(d)}`;
     }
 
     function getDeadlineStatus(dateStr, isCompleted) {
         if (!dateStr) return 'none';
         if (isCompleted) return 'completed';
+        
         const today = new Date();
         today.setHours(0,0,0,0);
-        const due = new Date(dateStr);
-        const dueAdjusted = new Date(due.getTime() + (due.getTimezoneOffset() * 60000));
-        const diffDays = Math.ceil((dueAdjusted - today) / (1000 * 60 * 60 * 24));
+        
+        // Strict parsing for comparison
+        const [y, m, d] = dateStr.split('-');
+        const due = new Date(y, m - 1, d); 
+
+        const diffTime = due - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
         if (diffDays < 0) return 'overdue';
         if (diffDays <= 7) return 'warning';
         return 'safe';
@@ -838,8 +843,13 @@
                 const status = getDeadlineStatus(m.date, m.completed);
                 const colorClass = getStatusClasses(status);
                 
-                // FIX: Always show date if available, even if completed (green class indicates done)
-                const displayDate = m.date ? (new Date(m.date).getMonth()+1 + '/' + new Date(m.date).getDate()) : '-';
+                // FIX: Always show date if available.
+                // Split and reconstruct to avoid off-by-one error in display
+                let displayDate = '-';
+                if (m.date) {
+                    const [y, mo, d] = m.date.split('-');
+                    displayDate = `${parseInt(mo)}/${parseInt(d)}`;
+                }
                 
                 html += `
                     <td class="px-2 py-3 border-l border-slate-100 text-center bg-opacity-50 ${status === 'overdue' ? 'bg-red-50/30' : ''}">
