@@ -171,8 +171,8 @@
     // 1. STATE & CONFIG
     // ==============================================================
     
-    // ⚠️ UPDATE THIS IF YOUR URL CHANGED AFTER DEPLOYING THE NEW SCRIPT
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwWvlmdyVeefYUaGkDhql8jpVJTjaZCZ0wlJ42BrWdJvtuneIglOPq9VuWoOKInTW6y/exec";
+    // ⚠️ UPDATED GOOGLE SCRIPT WEB APP URL
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwssTzVBBEqi8vTtU2B8zBVQ3YFMtXJvyPvVUFwJv6a6Z5tcDK1WfYCYtZsVrLMtTdS/exec";
 
     // Load from LocalStorage immediately for fast paint
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
@@ -262,7 +262,6 @@
             };
             
             // Using text/plain + no-cors to prevent browser preflight blocks.
-            // This is fire-and-forget for saving events.
             await fetch(CLOUD_URL, {
                 method: 'POST',
                 mode: 'no-cors', 
@@ -282,27 +281,35 @@
         }
     }
 
-    // UPLOAD: Send file to Drive (Special logic)
+    // UPLOAD: Send file to Drive via Apps Script
     async function uploadToDrive(file, uiCallback) {
         if (!CLOUD_URL) return null;
         
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const base64 = reader.result.split(',')[1];
-                const payload = {
-                    action: 'upload',
-                    fileName: file.name,
-                    mimeType: file.type,
-                    fileData: base64
-                };
+            
+            // Error handling for read
+            reader.onerror = () => {
+                uiCallback('Error');
+                alert("Failed to read file.");
+                resolve(null);
+            };
 
+            reader.onload = async () => {
                 try {
+                    // Remove "data:*/*;base64," prefix
+                    const base64 = reader.result.split(',')[1];
+                    
+                    const payload = {
+                        action: 'upload',
+                        fileName: file.name,
+                        mimeType: file.type,
+                        fileData: base64
+                    };
+
                     uiCallback('Uploading...');
                     
-                    // Note: We REMOVE 'no-cors' here because we MUST read the response (the file URL)
-                    // If CORS issues appear here, it means the Google Script didn't deploy correctly with "Anyone" access.
+                    // We need to read the response, so we use standard POST with text/plain
                     const res = await fetch(CLOUD_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'text/plain' },
@@ -317,15 +324,18 @@
                     } else {
                         uiCallback('Failed');
                         console.error("Upload failed server-side:", json);
+                        alert("Google Drive Upload Failed: " + (json.error || "Unknown Error"));
                         resolve(null);
                     }
                 } catch (e) {
                     uiCallback('Error');
                     console.error("Upload failed network:", e);
-                    alert("Upload failed. Ensure Script is deployed with 'Anyone' access.");
+                    alert("Network Error during upload. Check internet or file size.");
                     resolve(null);
                 }
             };
+
+            reader.readAsDataURL(file);
         });
     }
 
@@ -493,6 +503,7 @@
                 <td class="px-4 py-3 text-slate-600 font-mono text-xs">$${(ev.budget || 0).toLocaleString()}</td>
             `;
 
+            // Milestone Columns
             MILESTONE_KEYS.forEach(key => {
                 const m = ev.deadlines?.[key] || {};
                 const status = getDeadlineStatus(m.date, m.completed);
@@ -513,6 +524,7 @@
                 `;
             });
 
+            // End Columns
             html += `
                 <td class="px-4 py-3 border-l border-slate-100">
                     <span class="inline-block bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded-full font-medium whitespace-nowrap">
@@ -558,6 +570,7 @@
     function formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
+        // Correct for timezone offset to prevent one-day-off errors
         const userTimezoneOffset = d.getTimezoneOffset() * 60000;
         const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
         return `${adjustedDate.getMonth() + 1}/${adjustedDate.getDate()}`;
@@ -698,6 +711,7 @@
                 <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                     <span class="text-lg">ℹ️</span>
                     <p>Files are uploaded securely to your Google Drive "Arts Manager Files" folder.</p>
+                    <p class="mt-1 text-slate-500 font-semibold">Note: File size limit is 25MB.</p>
                 </div>
                 ${renderFileCategories()}
             </div>
@@ -795,6 +809,13 @@
                 const file = e.target.files[0];
                 if (!file) return;
 
+                // 1. SIZE CHECK (Crucial to prevent crashes)
+                if (file.size > 25 * 1024 * 1024) {
+                    alert("File too large. Please select a file under 25MB.");
+                    e.target.value = ""; // Reset input
+                    return;
+                }
+
                 // Create a temporary ID and visual state
                 const tempId = 'f_' + Math.random().toString(36).substr(2, 9);
                 
@@ -815,14 +836,15 @@
                 document.getElementById('form-tab-files').innerHTML = `
                     <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                         <span class="text-lg">ℹ️</span>
-                        <p>Files are uploaded securely to your Google Drive.</p>
+                        <p>Files are uploaded securely to your Google Drive "Arts Manager Files" folder.</p>
+                        <p class="mt-1 text-slate-500 font-semibold">Note: File size limit is 25MB.</p>
                     </div>
                     ${renderFileCategories()}
                 `;
                 
                 // PERFORM THE UPLOAD
                 const driveUrl = await uploadToDrive(file, (status) => {
-                   // Optional progress callback if we wanted detailed percentages
+                   // Optional progress callback
                 });
                 
                 // Update state with URL
@@ -834,6 +856,7 @@
                     } else {
                         targetFile.name += " (Upload Failed)";
                         targetFile.status = 'error';
+                        // Optionally remove from list or keep to show error
                     }
                 }
                 
@@ -841,7 +864,8 @@
                 document.getElementById('form-tab-files').innerHTML = `
                     <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                         <span class="text-lg">ℹ️</span>
-                        <p>Files are uploaded securely to your Google Drive.</p>
+                        <p>Files are uploaded securely to your Google Drive "Arts Manager Files" folder.</p>
+                        <p class="mt-1 text-slate-500 font-semibold">Note: File size limit is 25MB.</p>
                     </div>
                     ${renderFileCategories()}
                 `;
@@ -855,7 +879,8 @@
         document.getElementById('form-tab-files').innerHTML = `
             <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
                 <span class="text-lg">ℹ️</span>
-                <p>Files are uploaded securely to your Google Drive.</p>
+                <p>Files are uploaded securely to your Google Drive "Arts Manager Files" folder.</p>
+                <p class="mt-1 text-slate-500 font-semibold">Note: File size limit is 25MB.</p>
             </div>
             ${renderFileCategories()}
         `;
