@@ -6,6 +6,8 @@
     <title>Arts Events Manager</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2pdf.js for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         body { background: #f1f5f9; -webkit-tap-highlight-color: transparent; }
@@ -30,6 +32,9 @@
         
         /* Aspect Ratio for Cover Images */
         .aspect-video { aspect-ratio: 16 / 9; }
+        
+        /* PDF Generation Helper Class */
+        .pdf-hide { display: none !important; }
     </style>
 </head>
 
@@ -73,8 +78,13 @@
             </div>
 
             <!-- Settings -->
-            <button onclick="openSettings()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition bg-white border border-slate-200">
+            <button onclick="openSettings()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition bg-white border border-slate-200" title="Settings">
                 ⚙️
+            </button>
+
+            <!-- Download PDF -->
+            <button onclick="downloadPDF()" class="p-2.5 rounded-lg text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition bg-white border border-slate-200" title="Download PDF Report">
+                📥
             </button>
 
             <!-- Add Event -->
@@ -89,7 +99,7 @@
     <!-- ====================================================== -->
     <div id="view-events" class="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto scroll-hide">
-            <table class="w-full text-sm text-left border-collapse">
+            <table class="w-full text-sm text-left border-collapse" id="events-table-main">
                 <thead class="bg-slate-900 text-slate-100 uppercase text-xs font-bold tracking-wider">
                     <tr id="table-header-row">
                         <!-- Headers injected via JS -->
@@ -114,7 +124,7 @@
     <div id="view-budget" class="hidden space-y-6">
         
         <!-- 1. Monthly Budget Overview -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="budget-overview-card">
             <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                 <h2 class="font-bold text-slate-800">Monthly Budget Breakdown</h2>
                 <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border">Fiscal Year: July - June</span>
@@ -127,7 +137,7 @@
                             <th class="px-4 py-2 w-[150px]">Allocated</th>
                             <th class="px-4 py-2 text-blue-600">Used</th>
                             <th class="px-4 py-2 text-right">Remaining</th>
-                            <th class="px-4 py-2 w-[50px]"></th>
+                            <th class="px-4 py-2 w-[50px] action-col"></th>
                         </tr>
                     </thead>
                     <tbody id="budget-months-body" class="divide-y divide-slate-50">
@@ -136,7 +146,7 @@
                 </table>
             </div>
             <!-- Add Month Button -->
-            <div class="p-3 bg-slate-50 border-t border-slate-100">
+            <div class="p-3 bg-slate-50 border-t border-slate-100 action-col">
                 <button onclick="addBudgetMonth()" class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1">
                     <span class="text-lg leading-none">+</span> Add Month
                 </button>
@@ -145,8 +155,8 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            <!-- 2. Expense Entry Form -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+            <!-- 2. Expense Entry Form (Hidden in PDF) -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 action-col">
                 <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <span class="bg-purple-100 text-purple-700 p-1 rounded">💸</span> Add Expense
                 </h3>
@@ -196,7 +206,7 @@
             </div>
 
             <!-- 3. Recent Expenses List -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[420px]">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-[420px]" id="expenses-list-card">
                 <div class="p-4 border-b border-slate-100 bg-slate-50">
                     <h3 class="font-bold text-slate-800">Recent Expenses</h3>
                 </div>
@@ -207,7 +217,7 @@
         </div>
 
         <!-- 4. Event Financials Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="event-performance-card">
             <div class="p-4 border-b border-slate-100 bg-slate-50">
                 <h2 class="font-bold text-slate-800">Event Financial Performance</h2>
             </div>
@@ -332,7 +342,7 @@
     // ==============================================================
     
     // ⚠️ UPDATED GOOGLE SCRIPT WEB APP URL
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwEb4pElQ8Yu1l2X3jTWBCgZqsUKdOi8bdwBu5JUKiXzB0_CFrG0xw-itNGbatvFPKR/exec";
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzP45M3343HTFt5UrnbWtidddaB174l-k9SDF-SE-R5gQ2EVF-3IY9XCTmXS7QhaLPL/exec";
 
     // Load State
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
@@ -374,6 +384,9 @@
     let syncInterval = null;
     let editingEventId = null; 
     let tempFiles = {}; 
+    
+    // Current active view tracker
+    let currentView = 'events';
 
     // ==============================================================
     // 2. HELPER FUNCTIONS (Moved Up for Safety)
@@ -438,6 +451,7 @@
     // ==============================================================
     
     window.switchView = function(viewName) {
+        currentView = viewName;
         const views = {
             events: document.getElementById('view-events'),
             budget: document.getElementById('view-budget'),
@@ -463,7 +477,77 @@
     };
 
     // ==============================================================
-    // 5. PHOTOS LOGIC
+    // 5. PDF GENERATION
+    // ==============================================================
+    
+    window.downloadPDF = function() {
+        let element = null;
+        let opt = {
+            margin:       0.5,
+            filename:     `${appName}_${currentView}_Report.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+        };
+
+        // Clone and clean based on view
+        if (currentView === 'events') {
+            const originalTable = document.getElementById('events-table-main');
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = `<h2 style="text-align:center; margin-bottom:20px; font-family:sans-serif;">${appName} - Events Report</h2>`;
+            
+            const clone = originalTable.cloneNode(true);
+            // Remove last column (Actions)
+            const rows = clone.rows;
+            for (let i = 0; i < rows.length; i++) {
+                rows[i].deleteCell(-1); // Delete last cell
+            }
+            wrapper.appendChild(clone);
+            element = wrapper;
+            
+        } else if (currentView === 'budget') {
+            const originalBudget = document.getElementById('view-budget');
+            const clone = originalBudget.cloneNode(true);
+            
+            // Hide actions using css class helper
+            const actions = clone.querySelectorAll('.action-col, button, input');
+            // Convert inputs to text spans for clean print
+            clone.querySelectorAll('input').forEach(input => {
+                const span = document.createElement('span');
+                span.innerText = input.value;
+                input.parentNode.replaceChild(span, input);
+            });
+            
+            // Remove form and buttons
+            clone.querySelectorAll('button').forEach(el => el.remove());
+            const form = clone.querySelector('.bg-white.p-5'); // Expense form
+            if(form) form.remove();
+            
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = `<h2 style="text-align:center; margin-bottom:20px; font-family:sans-serif;">${appName} - Budget Report</h2>`;
+            wrapper.appendChild(clone);
+            element = wrapper;
+            
+        } else if (currentView === 'photos') {
+            const originalPhotos = document.getElementById('photos-grid');
+            const clone = originalPhotos.cloneNode(true);
+            // Clean up inputs
+            clone.querySelectorAll('input').forEach(el => el.remove());
+            clone.querySelectorAll('label').forEach(el => el.remove());
+            
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = `<h2 style="text-align:center; margin-bottom:20px; font-family:sans-serif;">${appName} - Event Photos</h2>`;
+            wrapper.appendChild(clone);
+            element = wrapper;
+        }
+
+        if (element) {
+            html2pdf().set(opt).from(element).save();
+        }
+    };
+
+    // ==============================================================
+    // 6. PHOTOS LOGIC
     // ==============================================================
 
     function renderPhotosView() {
@@ -532,7 +616,7 @@
     };
 
     // ==============================================================
-    // 6. BUDGET LOGIC & RENDERING
+    // 7. BUDGET LOGIC & RENDERING
     // ==============================================================
 
     function renderBudgetView() {
@@ -573,7 +657,7 @@
                 <td class="px-4 py-3 font-mono text-right font-bold ${remaining < 0 ? 'text-red-600' : 'text-green-600'}">
                     $${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-3 text-center action-col">
                     <button onclick="removeBudgetMonth(${index})" class="text-slate-300 hover:text-red-500">✕</button>
                 </td>
             `;
@@ -714,7 +798,7 @@
     };
 
     // ==============================================================
-    // 7. CLOUD SYNC (ARCHIVE LOGIC)
+    // 8. CLOUD SYNC (ARCHIVE LOGIC)
     // ==============================================================
 
     function startCloudSync() {
@@ -752,7 +836,6 @@
         updateSyncUI();
         
         try {
-            // 1. Send archive command to backend
             await fetch(CLOUD_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -760,14 +843,12 @@
                 body: JSON.stringify({ action: 'archive', archiveName: yearName })
             });
             
-            // 2. Clear Local Data
             eventsData = [];
             expensesData = [];
             budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
             
-            saveLocal(false); // Save empty state without syncing yet
+            saveLocal(false); 
             
-            // 3. Force reload to fetch fresh (empty) state from backend
             alert("Archiving... The app will reset in a few seconds.");
             setTimeout(() => {
                 location.reload();
@@ -791,7 +872,7 @@
                 events: eventsData,
                 expenses: expensesData,
                 budgets: budgetData,
-                settings: { appName: appName } // NEW: Sync App Name
+                settings: { appName: appName } 
             };
             
             await fetch(CLOUD_URL, {
@@ -838,7 +919,7 @@
                     renderEvents();
                     renderBudgetView();
                     renderPhotosView();
-                    renderAppTitle(); // Update title on load
+                    renderAppTitle(); 
                 }
             }
         } catch (e) {
@@ -857,7 +938,7 @@
     }
 
     // ==============================================================
-    // 8. UPLOAD LOGIC
+    // 9. UPLOAD LOGIC
     // ==============================================================
     
     async function uploadToDrive(file, uiCallback) {
@@ -923,7 +1004,7 @@
     };
 
     // ==============================================================
-    // 9. UI COMPONENTS
+    // 10. UI COMPONENTS
     // ==============================================================
 
     function renderTableHeader() {
@@ -1009,135 +1090,7 @@
         });
     }
 
-    // Modal Logic
-    window.openEventEditor = function(id) {
-        editingEventId = id;
-        document.getElementById('event-modal').classList.remove('hidden');
-        
-        let data = id ? eventsData.find(e => e.id === id) : { name:'', deadlines:{} };
-        tempFiles = JSON.parse(JSON.stringify(data.files || { general:[], marketing:[], amazon:[] }));
-        
-        document.getElementById('event-modal-content').innerHTML = `
-            <div id="form-tab-details" class="space-y-6">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" value="${data.name||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Date</label><input type="date" id="form-date" value="${data.date||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Time</label><input id="form-time" value="${data.time||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Location</label><input id="form-location" value="${data.location||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Budget</label><input type="number" id="form-budget" value="${data.budget||''}" class="w-full px-3 py-2 border rounded"></div>
-                </div>
-                <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">Cart</label>
-                        <select id="form-cart" class="w-full px-2 py-2 border rounded bg-white">
-                            <option>Caddy</option>
-                            <option>Clubs Cart</option>
-                            <option>None</option>
-                        </select>
-                    </div>
-                    <div><label class="text-xs font-bold text-slate-500">Contact</label><input id="form-contact" value="${data.contact||''}" class="w-full px-2 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Status</label><select id="form-status" class="w-full px-2 py-2 border rounded bg-white"><option>Submit</option><option>Pending</option><option>Approved</option></select></div>
-                </div>
-                <div class="border-t pt-4">
-                    <h3 class="text-sm font-bold text-slate-700 mb-3">Deadlines</h3>
-                    <div class="grid grid-cols-3 gap-3">
-                        ${MILESTONE_KEYS.map(k => {
-                            const m = data.deadlines?.[k] || {};
-                            return `<div class="bg-white border rounded p-2"><div class="flex justify-between mb-1"><label class="text-xs font-bold">${columnLabels[k]||k}</label><input type="checkbox" id="c-${k}" ${m.completed?'checked':''}></div><input type="date" id="d-${k}" value="${m.date||''}" class="w-full text-xs border rounded mb-1"><input id="a-${k}" value="${m.assignee||''}" placeholder="Name" class="w-full text-xs border rounded"></div>`
-                        }).join('')}
-                    </div>
-                </div>
-            </div>
-            <div id="form-tab-files" class="hidden space-y-4"></div>
-        `;
-        
-        if(data.cart) document.getElementById('form-cart').value = data.cart;
-        if(data.status) document.getElementById('form-status').value = data.status;
-        
-        window.switchTab('details');
-        // FIX: Force files tab to render so buttons exist if user switches immediately
-        renderFilesTab();
-    };
-
-    window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
-
-    window.saveEvent = function() {
-        const name = document.getElementById('form-name').value;
-        if(!name) return alert("Name required");
-        
-        const ev = {
-            id: editingEventId || 'ev_'+Date.now(),
-            name, 
-            date: document.getElementById('form-date').value,
-            time: document.getElementById('form-time').value,
-            location: document.getElementById('form-location').value,
-            budget: Number(document.getElementById('form-budget').value),
-            cart: document.getElementById('form-cart').value,
-            contact: document.getElementById('form-contact').value,
-            status: document.getElementById('form-status').value,
-            attendance: editingEventId ? (eventsData.find(e=>e.id===editingEventId)?.attendance || 0) : 0,
-            deadlines: {},
-            files: tempFiles
-        };
-        
-        MILESTONE_KEYS.forEach(k => {
-            ev.deadlines[k] = {
-                date: document.getElementById(`d-${k}`).value,
-                assignee: document.getElementById(`a-${k}`).value,
-                completed: document.getElementById(`c-${k}`).checked
-            };
-        });
-
-        if(editingEventId) {
-            const idx = eventsData.findIndex(e=>e.id===editingEventId);
-            if(idx !== -1) eventsData[idx] = ev;
-        } else {
-            eventsData.push(ev);
-        }
-        
-        saveLocal();
-        renderEvents();
-        renderBudgetView(); 
-        closeEventModal();
-    };
-
-    window.toggleDeadline = function(id, k) {
-        const ev = eventsData.find(e=>e.id===id);
-        if(ev) {
-            if(!ev.deadlines) ev.deadlines={};
-            if(!ev.deadlines[k]) ev.deadlines[k]={};
-            ev.deadlines[k].completed = !ev.deadlines[k].completed;
-            saveLocal();
-            renderEvents();
-        }
-    };
-    
-    window.updateStatus = function(id, val) {
-        const ev = eventsData.find(e=>e.id===id);
-        if(ev) { ev.status = val; saveLocal(); }
-    }
-
-    window.deleteEvent = function(id) {
-        if(confirm("Delete?")) {
-            eventsData = eventsData.filter(e=>e.id!==id);
-            saveLocal();
-            renderEvents();
-            renderBudgetView();
-        }
-    }
-
-    function renderFileCategories() {
-        return ['general','marketing','amazon'].map(c => `
-            <div class="bg-slate-50 p-4 rounded border">
-                <div class="flex justify-between mb-2"><h3 class="font-bold text-sm capitalize">${c}</h3><label class="cursor-pointer bg-white border px-2 rounded text-xs">Upload<input type="file" class="hidden file-input" data-cat="${c}"></label></div>
-                <div class="space-y-1">
-                    ${(tempFiles[c]||[]).map(f => `<div class="flex justify-between bg-white p-2 border rounded text-xs"><span>${f.url?`<a href="${f.url}" target="_blank" class="text-blue-600">${f.name}</a>`:f.name}</span><button onclick="removeFile('${c}','${f.id}')" class="text-red-500">✕</button></div>`).join('')}
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // 10. Settings
+    // 11. Settings
     window.openSettings = function() {
         document.getElementById('settings-modal').classList.remove('hidden');
         document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `<div class="flex items-center gap-2 mb-2"><span class="w-24 text-xs font-bold">${k}</span><input id="set-${k}" value="${columnLabels[k]}" class="flex-1 border rounded px-2 py-1 text-sm"></div>`).join('');
@@ -1156,7 +1109,7 @@
         closeSettings();
     };
 
-    // 11. FIX: Make switchTab global to resolve reference error in HTML handlers
+    // 12. FIX: Make switchTab global to resolve reference error in HTML handlers
     window.switchTab = function(tab) {
         const detailsTab = document.getElementById('form-tab-details');
         const filesTab = document.getElementById('form-tab-files');
