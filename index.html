@@ -27,6 +27,9 @@
         
         /* Tab Active State */
         .nav-tab.active { background-color: #f3e8ff; color: #7e22ce; border-color: #d8b4fe; }
+        
+        /* Aspect Ratio for Cover Images */
+        .aspect-video { aspect-ratio: 16 / 9; }
     </style>
 </head>
 
@@ -310,14 +313,12 @@
     // 1. STATE & CONFIG
     // ==============================================================
     
-    // ⚠️ UPDATED GOOGLE SCRIPT WEB APP URL
     const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzP45M3343HTFt5UrnbWtidddaB174l-k9SDF-SE-R5gQ2EVF-3IY9XCTmXS7QhaLPL/exec";
 
     // Load State
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
     let expensesData = JSON.parse(localStorage.getItem('arts_expenses_data') || '[]');
     
-    // Initialize defaults
     const DEFAULT_BUDGET_MONTHS = [
         { name: "July", allocated: 0 },
         { name: "August", allocated: 13000 },
@@ -355,7 +356,46 @@
     let tempFiles = {}; 
 
     // ==============================================================
-    // 2. INIT
+    // 2. HELPER FUNCTIONS (Moved Up for Safety)
+    // ==============================================================
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+        const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
+        return `${adjustedDate.getMonth() + 1}/${adjustedDate.getDate()}`;
+    }
+
+    function getDeadlineStatus(dateStr, isCompleted) {
+        if (!dateStr) return 'none';
+        if (isCompleted) return 'completed';
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const due = new Date(dateStr);
+        const dueAdjusted = new Date(due.getTime() + (due.getTimezoneOffset() * 60000));
+        const diffDays = Math.ceil((dueAdjusted - today) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return 'overdue';
+        if (diffDays <= 7) return 'warning';
+        return 'safe';
+    }
+
+    function getStatusClasses(status) {
+        switch(status) {
+            case 'completed': return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200';
+            case 'overdue': return 'bg-red-500 text-white border-red-600 animate-pulse hover:bg-red-600';
+            case 'warning': return 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200';
+            default: return 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
+        }
+    }
+
+    function hasFiles(ev) {
+        if (!ev.files) return false;
+        return Object.values(ev.files).some(arr => arr && arr.length > 0);
+    }
+
+    // ==============================================================
+    // 3. INIT
     // ==============================================================
     
     function initApp() {
@@ -368,7 +408,7 @@
     }
 
     // ==============================================================
-    // 3. VIEW SWITCHING
+    // 4. VIEW SWITCHING
     // ==============================================================
     
     window.switchView = function(viewName) {
@@ -397,7 +437,7 @@
     };
 
     // ==============================================================
-    // 4. PHOTOS LOGIC
+    // 5. PHOTOS LOGIC
     // ==============================================================
 
     function renderPhotosView() {
@@ -470,7 +510,7 @@
     };
 
     // ==============================================================
-    // 5. BUDGET LOGIC & RENDERING
+    // 6. BUDGET LOGIC & RENDERING
     // ==============================================================
 
     function renderBudgetView() {
@@ -653,7 +693,7 @@
     };
 
     // ==============================================================
-    // 6. CLOUD SYNC
+    // 7. CLOUD SYNC
     // ==============================================================
 
     function startCloudSync() {
@@ -751,7 +791,7 @@
     }
 
     // ==============================================================
-    // 7. UPLOAD LOGIC
+    // 8. UPLOAD LOGIC
     // ==============================================================
     
     async function uploadToDrive(file, uiCallback) {
@@ -817,7 +857,7 @@
     };
 
     // ==============================================================
-    // 8. UI COMPONENTS
+    // 9. UI COMPONENTS
     // ==============================================================
 
     function renderTableHeader() {
@@ -901,15 +941,6 @@
             tr.innerHTML = html;
             tbody.appendChild(tr);
         });
-    }
-
-    // Deadline Helpers
-    function getDeadlineStatus(d, c) { if(!d) return 'none'; if(c) return 'completed'; const diff = Math.ceil((new Date(d) - new Date())/(1000*60*60*24)); return diff<0?'overdue':diff<=7?'warning':'safe'; }
-    function getStatusClasses(s) { 
-        if(s==='completed') return 'bg-green-100 text-green-700 border-green-200';
-        if(s==='overdue') return 'bg-red-500 text-white border-red-600 animate-pulse';
-        if(s==='warning') return 'bg-orange-100 text-orange-700 border-orange-200';
-        return 'bg-white text-slate-600 border-slate-200';
     }
 
     // Modal Logic
@@ -1027,7 +1058,18 @@
         }
     }
 
-    // 9. Settings
+    function renderFileCategories() {
+        return ['general','marketing','amazon'].map(c => `
+            <div class="bg-slate-50 p-4 rounded border">
+                <div class="flex justify-between mb-2"><h3 class="font-bold text-sm capitalize">${c}</h3><label class="cursor-pointer bg-white border px-2 rounded text-xs">Upload<input type="file" class="hidden file-input" data-cat="${c}"></label></div>
+                <div class="space-y-1">
+                    ${(tempFiles[c]||[]).map(f => `<div class="flex justify-between bg-white p-2 border rounded text-xs"><span>${f.url?`<a href="${f.url}" target="_blank" class="text-blue-600">${f.name}</a>`:f.name}</span><button onclick="removeFile('${c}','${f.id}')" class="text-red-500">✕</button></div>`).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 10. Settings
     window.openSettings = function() {
         document.getElementById('settings-modal').classList.remove('hidden');
         document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `<div class="flex items-center gap-2 mb-2"><span class="w-24 text-xs font-bold">${k}</span><input id="set-${k}" value="${columnLabels[k]}" class="flex-1 border rounded px-2 py-1 text-sm"></div>`).join('');
@@ -1041,7 +1083,7 @@
         closeSettings();
     };
 
-    // 10. FIX: Make switchTab global to resolve reference error in HTML handlers
+    // 11. FIX: Make switchTab global to resolve reference error in HTML handlers
     window.switchTab = function(tab) {
         const detailsTab = document.getElementById('form-tab-details');
         const filesTab = document.getElementById('form-tab-files');
