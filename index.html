@@ -83,7 +83,7 @@
             </button>
 
             <!-- Download PDF -->
-            <button onclick="downloadPDF()" class="p-2.5 rounded-lg text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition bg-white border border-slate-200" title="Download PDF Report">
+            <button onclick="downloadPDF()" class="p-2.5 rounded-lg text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition bg-white border border-slate-200" title="Download Full Report">
                 📥
             </button>
 
@@ -481,69 +481,106 @@
     // ==============================================================
     
     window.downloadPDF = function() {
-        let element = null;
+        // Create Master Container
+        const container = document.createElement('div');
+        container.style.padding = '20px';
+        container.style.fontFamily = 'sans-serif';
+
+        // --- SECTION 1: EVENTS ---
+        const eventsHeader = document.createElement('h2');
+        eventsHeader.innerText = `${appName} - Events Overview`;
+        eventsHeader.style.textAlign = 'center';
+        eventsHeader.style.marginBottom = '10px';
+        container.appendChild(eventsHeader);
+
+        const eventsTable = document.getElementById('events-table-main').cloneNode(true);
+        // Clean Events Table: Remove Last Column (Actions)
+        const rows = eventsTable.rows;
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].cells.length > 0) rows[i].deleteCell(-1);
+        }
+        container.appendChild(eventsTable);
+
+        // --- SECTION 2: BUDGET ---
+        const budgetContainer = document.createElement('div');
+        budgetContainer.style.pageBreakBefore = 'always';
+        
+        const budgetHeader = document.createElement('h2');
+        budgetHeader.innerText = 'Financial Report';
+        budgetHeader.style.textAlign = 'center';
+        budgetHeader.style.marginBottom = '20px';
+        budgetContainer.appendChild(budgetHeader);
+
+        // Clone Budget View (ensure visible)
+        const originalBudget = document.getElementById('view-budget');
+        const budgetClone = originalBudget.cloneNode(true);
+        budgetClone.classList.remove('hidden');
+        budgetClone.style.display = 'block';
+
+        // Clean Budget Clone: Inputs to Text, Remove Forms
+        budgetClone.querySelectorAll('input').forEach(input => {
+            const span = document.createElement('span');
+            span.innerText = input.value;
+            // Format allocated amounts
+            if(input.type === 'number' && input.value) {
+                span.innerText = '$' + Number(input.value).toLocaleString();
+            }
+            input.parentNode.replaceChild(span, input);
+        });
+
+        // Remove unwanted elements in Budget
+        const addMonthBtn = budgetClone.querySelector('button[onclick="addBudgetMonth()"]')?.parentNode;
+        if(addMonthBtn) addMonthBtn.remove();
+
+        // Remove "Add Expense" form card
+        const headers = budgetClone.querySelectorAll('h3');
+        headers.forEach(h3 => {
+            if(h3.innerText.includes('Add Expense')) {
+                h3.closest('.bg-white').remove(); // Remove parent card
+            }
+        });
+        
+        // Remove delete/action buttons
+        budgetClone.querySelectorAll('button').forEach(b => b.remove());
+        budgetClone.querySelectorAll('.action-col').forEach(c => c.remove());
+        
+        // Hide "Troubleshooting" if it got cloned (unlikely but safe)
+        budgetClone.querySelectorAll('.bg-slate-50.rounded-lg').forEach(el => {
+           if (el.innerText.includes('Troubleshooting')) el.remove();
+        });
+        
+        budgetContainer.appendChild(budgetClone);
+        container.appendChild(budgetContainer);
+
+        // --- SECTION 3: PHOTOS ---
+        const photoContainer = document.createElement('div');
+        photoContainer.style.pageBreakBefore = 'always';
+        
+        const photoHeader = document.createElement('h2');
+        photoHeader.innerText = 'Event Photos & Links';
+        photoHeader.style.textAlign = 'center';
+        photoHeader.style.marginBottom = '20px';
+        photoContainer.appendChild(photoHeader);
+
+        const photosGrid = document.getElementById('photos-grid').cloneNode(true);
+        // Clean Photos: Remove inputs/labels
+        photosGrid.querySelectorAll('input').forEach(el => el.remove());
+        photosGrid.querySelectorAll('label').forEach(el => el.remove());
+        photosGrid.querySelectorAll('.mt-auto').forEach(el => el.remove()); 
+        
+        photoContainer.appendChild(photosGrid);
+        container.appendChild(photoContainer);
+
+        // Generate PDF
         let opt = {
             margin:       0.5,
-            filename:     `${appName}_${currentView}_Report.pdf`,
+            filename:     `${appName}_Full_Report.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
+            html2canvas:  { scale: 2, useCORS: true }, 
             jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
         };
 
-        // Clone and clean based on view
-        if (currentView === 'events') {
-            const originalTable = document.getElementById('events-table-main');
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = `<h2 style="text-align:center; margin-bottom:20px; font-family:sans-serif;">${appName} - Events Report</h2>`;
-            
-            const clone = originalTable.cloneNode(true);
-            // Remove last column (Actions)
-            const rows = clone.rows;
-            for (let i = 0; i < rows.length; i++) {
-                rows[i].deleteCell(-1); // Delete last cell
-            }
-            wrapper.appendChild(clone);
-            element = wrapper;
-            
-        } else if (currentView === 'budget') {
-            const originalBudget = document.getElementById('view-budget');
-            const clone = originalBudget.cloneNode(true);
-            
-            // Hide actions using css class helper
-            const actions = clone.querySelectorAll('.action-col, button, input');
-            // Convert inputs to text spans for clean print
-            clone.querySelectorAll('input').forEach(input => {
-                const span = document.createElement('span');
-                span.innerText = input.value;
-                input.parentNode.replaceChild(span, input);
-            });
-            
-            // Remove form and buttons
-            clone.querySelectorAll('button').forEach(el => el.remove());
-            const form = clone.querySelector('.bg-white.p-5'); // Expense form
-            if(form) form.remove();
-            
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = `<h2 style="text-align:center; margin-bottom:20px; font-family:sans-serif;">${appName} - Budget Report</h2>`;
-            wrapper.appendChild(clone);
-            element = wrapper;
-            
-        } else if (currentView === 'photos') {
-            const originalPhotos = document.getElementById('photos-grid');
-            const clone = originalPhotos.cloneNode(true);
-            // Clean up inputs
-            clone.querySelectorAll('input').forEach(el => el.remove());
-            clone.querySelectorAll('label').forEach(el => el.remove());
-            
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = `<h2 style="text-align:center; margin-bottom:20px; font-family:sans-serif;">${appName} - Event Photos</h2>`;
-            wrapper.appendChild(clone);
-            element = wrapper;
-        }
-
-        if (element) {
-            html2pdf().set(opt).from(element).save();
-        }
+        html2pdf().set(opt).from(container).save();
     };
 
     // ==============================================================
