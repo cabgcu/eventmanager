@@ -49,7 +49,7 @@
     <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
         <div class="flex flex-col items-center lg:items-start">
-            <!-- APP TITLE -->
+            <!-- APP TITLE (Now Editable via ID) -->
             <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
@@ -316,7 +316,7 @@
                 <h2 id="event-modal-title" class="text-xl font-bold text-slate-800">Event Details</h2>
                 <div class="flex gap-4 mt-3">
                     <button id="tab-details" onclick="switchTab('details')" class="text-sm font-medium pb-1 border-b-2 border-purple-600 text-purple-600 transition">Details</button>
-                    <button id="tab-files" onclick="switchTab('files')" class="text-sm font-medium pb-1 text-slate-500 hover:text-slate-700 border-b-2 border-transparent transition">Files & Notes</button>
+                    <button id="tab-files" onclick="switchTab('files')" class="text-sm font-medium pb-1 text-slate-500 hover:text-slate-700 border-b-2 border-transparent transition">Notes & Files</button>
                 </div>
             </div>
             <button onclick="closeEventModal()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
@@ -422,7 +422,9 @@
 
     function hasFiles(ev) {
         if (!ev.files) return false;
-        return Object.values(ev.files).some(arr => arr && arr.length > 0);
+        const hasUploads = Object.values(ev.files).some(arr => arr && arr.length > 0);
+        const hasNotes = ev.notes && ev.notes.trim().length > 0;
+        return hasUploads || hasNotes;
     }
     
     function renderAppTitle() {
@@ -811,9 +813,19 @@
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50 group border-b border-slate-50 last:border-0";
             
+            // FIX: Removed explicit "flex" from <td>. Wrapped content in a div for alignment.
+            // FIX: Added date display instead of 'DONE' when completed.
+            
             let html = `
                 <td class="px-4 py-3 font-semibold text-slate-900 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">
-                    ${ev.name} ${(ev.files && Object.values(ev.files).flat().length) ? '📎' : ''}
+                   <div class="flex items-center gap-2 h-full">
+                        ${ev.name} 
+                        ${
+                            hasFiles(ev) 
+                            ? `<button onclick="openEventEditor('${ev.id}', 'files')" class="text-blue-500 hover:text-blue-700 text-sm px-1" title="View Notes & Files">📎</button>` 
+                            : ''
+                        }
+                   </div>
                 </td>
                 <td class="px-4 py-3 text-slate-600 text-xs">${formatDate(ev.date)}</td>
                 <td class="px-4 py-3 text-slate-600 text-xs">${ev.time || '-'}</td>
@@ -825,12 +837,16 @@
                 const m = ev.deadlines?.[key] || {};
                 const status = getDeadlineStatus(m.date, m.completed);
                 const colorClass = getStatusClasses(status);
+                
+                // FIX: Always show date if available, even if completed (green class indicates done)
+                const displayDate = m.date ? (new Date(m.date).getMonth()+1 + '/' + new Date(m.date).getDate()) : '-';
+                
                 html += `
                     <td class="px-2 py-3 border-l border-slate-100 text-center bg-opacity-50 ${status === 'overdue' ? 'bg-red-50/30' : ''}">
                         ${m.date ? `
                             <div class="flex flex-col gap-1 items-center">
                                 <button onclick="toggleDeadline('${ev.id}', '${key}')" class="w-full py-1 px-1 rounded text-[10px] font-bold border transition-all ${colorClass}">
-                                    ${m.completed ? 'DONE' : new Date(m.date).getMonth()+1 + '/' + new Date(m.date).getDate()}
+                                    ${displayDate}
                                 </button>
                                 ${m.assignee ? `<span class="text-[9px] text-slate-400">${m.assignee}</span>` : ''}
                             </div>
@@ -879,7 +895,7 @@
     };
     
     window.removeBudgetMonth = function(index) {
-        if(confirm("Remove this budget month?")) {
+        if(confirm("Are you sure you want to remove this month from the budget? This cannot be undone.")) {
             budgetData.splice(index, 1);
             saveLocal();
             renderBudgetView();
@@ -919,7 +935,7 @@
     };
 
     window.deleteExpense = function(id) {
-        if(!confirm("Delete this expense?")) return;
+        if(!confirm("Are you sure you want to permanently delete this expense?")) return;
         expensesData = expensesData.filter(e => e.id !== id);
         saveLocal();
         renderBudgetView();
@@ -1105,7 +1121,7 @@
                 if (!tempFiles[cat]) tempFiles[cat] = [];
                 tempFiles[cat].push({ id: tempId, name: file.name, size: (file.size/1024).toFixed(1)+'KB', date: new Date().toLocaleDateString(), status: 'uploading' });
                 
-                renderFilesTab();
+                renderFilesTab(cat); // Update ONLY the file tab container
                 
                 const driveUrl = await uploadToDrive(file, () => {});
                 const target = tempFiles[cat].find(f => f.id === tempId);
@@ -1113,38 +1129,37 @@
                     if(driveUrl) { target.url = driveUrl; target.status = 'done'; }
                     else { target.status = 'error'; }
                 }
-                renderFilesTab();
+                renderFilesTab(cat);
             });
         });
     }
 
-    function renderFilesTab() {
-        const container = document.getElementById('form-tab-files');
+    function renderFilesTab(targetCat = null) {
+        // If specific category update is needed we could optimize, but here we re-render the file list part
+        const container = document.getElementById('file-upload-container');
         if(!container) return;
-        container.innerHTML = `
-            <div class="p-4 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4 flex items-start gap-2">
-                <span class="text-lg">ℹ️</span>
-                <p>Files are uploaded securely to your Google Drive "Arts Manager Files" folder.</p>
-            </div>
-            ${renderFileCategories()}
-        `;
+        
+        container.innerHTML = renderFileCategories();
         attachFileHandlers();
     }
 
     window.removeFile = function(cat, fileId) {
+        if(!confirm("Are you sure you want to delete this file link?")) return;
         tempFiles[cat] = tempFiles[cat].filter(f => f.id !== fileId);
         renderFilesTab();
     };
 
-    function openEventEditor(id) {
+    function openEventEditor(id, initialTab = 'details') {
         editingEventId = id;
         document.getElementById('event-modal').classList.remove('hidden');
         
         let data = id ? eventsData.find(e => e.id === id) : { name:'', deadlines:{} };
+        // Ensure deep copy of notes and files
         tempFiles = JSON.parse(JSON.stringify(data.files || { general:[], marketing:[], amazon:[] }));
         
         document.getElementById('event-modal-content').innerHTML = `
             <div id="form-tab-details" class="space-y-6">
+                <!-- DETAILS FORM (Same as before) -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" value="${data.name||''}" class="w-full px-3 py-2 border rounded"></div>
                     <div><label class="text-xs font-bold text-slate-500">Date</label><input type="date" id="form-date" value="${data.date||''}" class="w-full px-3 py-2 border rounded"></div>
@@ -1174,14 +1189,31 @@
                     </div>
                 </div>
             </div>
-            <div id="form-tab-files" class="hidden space-y-4"></div>
+
+            <!-- NOTES & FILES TAB -->
+            <div id="form-tab-files" class="hidden space-y-6">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase mb-1">Event Notes</label>
+                    <textarea id="form-notes" class="w-full p-3 border border-slate-300 rounded-lg h-32 text-sm focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Add specific notes, gate codes, or reminders here...">${data.notes||''}</textarea>
+                </div>
+                
+                <div class="border-t pt-4">
+                     <label class="text-xs font-bold text-slate-500 uppercase mb-3 block">Attachments</label>
+                     <div id="file-upload-container">
+                        <!-- Files injected here by renderFilesTab -->
+                     </div>
+                </div>
+            </div>
         `;
         
         if(data.cart) document.getElementById('form-cart').value = data.cart;
         if(data.status) document.getElementById('form-status').value = data.status;
         
-        window.switchTab('details');
+        // Initialize file list
         renderFilesTab();
+        
+        // Switch to requested tab
+        window.switchTab(initialTab);
     }
 
     window.openEventEditor = openEventEditor; // Explicit global attachment
@@ -1202,6 +1234,7 @@
             cart: document.getElementById('form-cart').value,
             contact: document.getElementById('form-contact').value,
             status: document.getElementById('form-status').value,
+            notes: document.getElementById('form-notes').value, // Save Notes
             attendance: editingEventId ? (eventsData.find(e=>e.id===editingEventId)?.attendance || 0) : 0,
             deadlines: {},
             files: tempFiles
@@ -1245,7 +1278,7 @@
     }
 
     window.deleteEvent = function(id) {
-        if(confirm("Delete?")) {
+        if(confirm("Are you sure you want to delete this event? All associated data will be lost.")) {
             eventsData = eventsData.filter(e=>e.id!==id);
             saveLocal();
             renderEvents();
