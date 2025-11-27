@@ -44,7 +44,8 @@
     <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
         <div class="flex flex-col items-center lg:items-start">
-            <h1 class="text-2xl font-bold flex items-center gap-2 text-slate-900">
+            <!-- APP TITLE (Now Editable via ID) -->
+            <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
             
@@ -251,6 +252,12 @@
             <button class="text-slate-400 hover:text-slate-600 font-bold px-2" onclick="closeSettings()">✕</button>
         </div>
         <div class="p-6 space-y-6">
+            <!-- App Name Config -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Application Name</label>
+                <input id="setting-app-name" class="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Arts Events Manager">
+            </div>
+
             <div>
                 <h3 class="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider">Column Labels</h3>
                 <div id="column-label-editor" class="space-y-3"></div>
@@ -265,6 +272,17 @@
                 <button onclick="resetBudgetDefaults()" class="mt-2 w-full bg-white border border-red-200 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex justify-center items-center gap-2">
                     ⚠️ Reset Budget Months
                 </button>
+            </div>
+
+            <!-- Archive Zone -->
+            <div class="bg-red-50 p-4 rounded-lg border border-red-100">
+                <h3 class="text-xs font-bold text-red-600 uppercase mb-2">Admin Actions</h3>
+                <button onclick="archiveYear()" class="w-full bg-white border border-red-300 text-red-700 py-2 rounded-lg text-sm font-bold hover:bg-red-50 flex justify-center items-center gap-2 shadow-sm">
+                    📦 Archive & Start New Year
+                </button>
+                <p class="text-[10px] text-red-400 mt-2">
+                    Moves current data to archived sheets (e.g. "Events_2024") and resets the app to blank.
+                </p>
             </div>
             
             <div class="pt-4 border-t border-slate-100">
@@ -313,11 +331,13 @@
     // 1. STATE & CONFIG
     // ==============================================================
     
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbzP45M3343HTFt5UrnbWtidddaB174l-k9SDF-SE-R5gQ2EVF-3IY9XCTmXS7QhaLPL/exec";
+    // ⚠️ UPDATED GOOGLE SCRIPT WEB APP URL
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwEb4pElQ8Yu1l2X3jTWBCgZqsUKdOi8bdwBu5JUKiXzB0_CFrG0xw-itNGbatvFPKR/exec";
 
     // Load State
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
     let expensesData = JSON.parse(localStorage.getItem('arts_expenses_data') || '[]');
+    let appName = localStorage.getItem('arts_app_name') || 'Arts Events Manager';
     
     const DEFAULT_BUDGET_MONTHS = [
         { name: "July", allocated: 0 },
@@ -393,12 +413,18 @@
         if (!ev.files) return false;
         return Object.values(ev.files).some(arr => arr && arr.length > 0);
     }
+    
+    function renderAppTitle() {
+        const el = document.getElementById('app-title-display');
+        if (el) el.innerText = `🎨 ${appName}`;
+    }
 
     // ==============================================================
     // 3. INIT
     // ==============================================================
     
     function initApp() {
+        renderAppTitle();
         renderTableHeader();
         renderEvents();
         renderBudgetView();
@@ -449,7 +475,6 @@
             return;
         }
 
-        // Sort by date
         const sorted = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
 
         sorted.forEach(ev => {
@@ -461,20 +486,17 @@
             card.innerHTML = `
                 <div class="relative aspect-video bg-slate-100 overflow-hidden group">
                     <img src="${bgImage}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" onerror="this.src='https://via.placeholder.com/400x225/f1f5f9/cbd5e1?text=Error'">
-                    
                     ${ev.photosLink ? `
                         <a href="${ev.photosLink}" target="_blank" class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                             <span class="bg-white text-slate-900 px-4 py-2 rounded-full font-bold text-sm transform scale-95 group-hover:scale-100 transition">📂 Open Drive Folder</span>
                         </a>
                     ` : ''}
                 </div>
-                
                 <div class="p-4 flex-1 flex flex-col gap-3">
                     <div>
                         <h3 class="font-bold text-slate-800 truncate">${ev.name}</h3>
                         <p class="text-xs text-slate-500">${formatDate(ev.date)}</p>
                     </div>
-
                     <div class="mt-auto space-y-2">
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 uppercase">Cover Image URL</label>
@@ -532,7 +554,6 @@
                 .reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
             
             const remaining = m.allocated - used;
-            
             yearlyAllocated += Number(m.allocated);
             yearlyUsed += used;
 
@@ -693,7 +714,7 @@
     };
 
     // ==============================================================
-    // 7. CLOUD SYNC
+    // 7. CLOUD SYNC (ARCHIVE LOGIC)
     // ==============================================================
 
     function startCloudSync() {
@@ -720,6 +741,44 @@
         await syncToCloud();
         alert("Sync command sent.");
     }
+    
+    window.archiveYear = async function() {
+        const yearName = prompt("Enter name for Archive (e.g., 2024-2025):");
+        if (!yearName) return;
+        
+        if (!confirm(`Are you sure you want to archive ALL current data to 'Events_${yearName}' and reset the app?`)) return;
+        
+        isSyncing = true;
+        updateSyncUI();
+        
+        try {
+            // 1. Send archive command to backend
+            await fetch(CLOUD_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'archive', archiveName: yearName })
+            });
+            
+            // 2. Clear Local Data
+            eventsData = [];
+            expensesData = [];
+            budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
+            
+            saveLocal(false); // Save empty state without syncing yet
+            
+            // 3. Force reload to fetch fresh (empty) state from backend
+            alert("Archiving... The app will reset in a few seconds.");
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+            
+        } catch(e) {
+            alert("Archive failed: " + e);
+            isSyncing = false;
+            updateSyncUI();
+        }
+    };
 
     async function syncToCloud() {
         if (!CLOUD_URL) return;
@@ -731,7 +790,8 @@
                 action: 'save',
                 events: eventsData,
                 expenses: expensesData,
-                budgets: budgetData // Added budgets to sync
+                budgets: budgetData,
+                settings: { appName: appName } // NEW: Sync App Name
             };
             
             await fetch(CLOUD_URL, {
@@ -768,12 +828,17 @@
                     budgetData = data.budgets;
                     changed = true;
                 }
+                if (data.settings && data.settings.appName && data.settings.appName !== appName) {
+                    appName = data.settings.appName;
+                    changed = true;
+                }
 
                 if (changed) {
                     saveLocal(false); 
                     renderEvents();
                     renderBudgetView();
                     renderPhotosView();
+                    renderAppTitle(); // Update title on load
                 }
             }
         } catch (e) {
@@ -786,6 +851,7 @@
         localStorage.setItem('arts_expenses_data', JSON.stringify(expensesData));
         localStorage.setItem('arts_budget_data', JSON.stringify(budgetData));
         localStorage.setItem('arts_column_labels', JSON.stringify(columnLabels));
+        localStorage.setItem('arts_app_name', appName);
         
         if (triggerSync) syncToCloud();
     }
@@ -989,6 +1055,8 @@
         if(data.status) document.getElementById('form-status').value = data.status;
         
         window.switchTab('details');
+        // FIX: Force files tab to render so buttons exist if user switches immediately
+        renderFilesTab();
     };
 
     window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
@@ -1073,13 +1141,18 @@
     window.openSettings = function() {
         document.getElementById('settings-modal').classList.remove('hidden');
         document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `<div class="flex items-center gap-2 mb-2"><span class="w-24 text-xs font-bold">${k}</span><input id="set-${k}" value="${columnLabels[k]}" class="flex-1 border rounded px-2 py-1 text-sm"></div>`).join('');
+        
+        // Set current app name
+        document.getElementById('setting-app-name').value = appName;
     };
     window.closeSettings = function() { document.getElementById('settings-modal').classList.add('hidden'); };
     window.saveSettings = function() {
         MILESTONE_KEYS.forEach(k => columnLabels[k] = document.getElementById(`set-${k}`).value);
+        appName = document.getElementById('setting-app-name').value; // Save App Name
         saveLocal();
         renderTableHeader();
         renderEvents();
+        renderAppTitle(); // Update title immediately
         closeSettings();
     };
 
