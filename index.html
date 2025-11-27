@@ -35,6 +35,9 @@
         
         /* PDF Generation Helper Class */
         .pdf-hide { display: none !important; }
+
+        /* Read Only Styles */
+        .read-only-input { background-color: #f8fafc; color: #64748b; cursor: not-allowed; }
     </style>
 </head>
 
@@ -49,7 +52,7 @@
     <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
         <div class="flex flex-col items-center lg:items-start">
-            <!-- APP TITLE (Now Editable via ID) -->
+            <!-- APP TITLE -->
             <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
@@ -87,10 +90,12 @@
                 📥
             </button>
 
-            <!-- Add Event -->
-            <button onclick="openEventEditor()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-md transition transform active:scale-95 flex items-center gap-2">
-                <span>+</span> New Event
-            </button>
+            <!-- Add Event / Exit Archive -->
+            <div id="main-action-area">
+                <button onclick="openEventEditor()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-md transition transform active:scale-95 flex items-center gap-2">
+                    <span>+</span> New Event
+                </button>
+            </div>
         </div>
     </div>
 
@@ -125,38 +130,44 @@
         
         <!-- 1. Monthly Budget Overview -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="budget-overview-card">
-            <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                <h2 class="font-bold text-slate-800">Monthly Budget Breakdown</h2>
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition" onclick="toggleBudgetBreakdown()">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                    <span id="budget-caret" class="transform transition-transform duration-200 text-slate-400">▼</span>
+                    Monthly Budget Breakdown
+                </h2>
                 <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border">Fiscal Year: July - June</span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-100 text-slate-600 text-xs uppercase">
-                        <tr>
-                            <th class="px-4 py-2">Month</th>
-                            <th class="px-4 py-2 w-[150px]">Allocated</th>
-                            <th class="px-4 py-2 text-blue-600">Used</th>
-                            <th class="px-4 py-2 text-right">Remaining</th>
-                            <th class="px-4 py-2 w-[50px] action-col"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="budget-months-body" class="divide-y divide-slate-50">
-                        <!-- Monthly rows injected here -->
-                    </tbody>
-                </table>
-            </div>
-            <!-- Add Month Button -->
-            <div class="p-3 bg-slate-50 border-t border-slate-100 action-col">
-                <button onclick="addBudgetMonth()" class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1">
-                    <span class="text-lg leading-none">+</span> Add Month
-                </button>
+            
+            <div id="budget-breakdown-content" class="transition-all duration-300">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-100 text-slate-600 text-xs uppercase">
+                            <tr>
+                                <th class="px-4 py-2">Month</th>
+                                <th class="px-4 py-2 w-[150px]">Allocated</th>
+                                <th class="px-4 py-2 text-blue-600">Used</th>
+                                <th class="px-4 py-2 text-right">Remaining</th>
+                                <th class="px-4 py-2 w-[50px] action-col"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-months-body" class="divide-y divide-slate-50">
+                            <!-- Monthly rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Add Month Button -->
+                <div class="p-3 bg-slate-50 border-t border-slate-100 action-col" id="add-month-container">
+                    <button onclick="addBudgetMonth()" class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                        <span class="text-lg leading-none">+</span> Add Month
+                    </button>
+                </div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             <!-- 2. Expense Entry Form (Hidden in PDF) -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 action-col">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 action-col" id="expense-form-card">
                 <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <span class="bg-purple-100 text-purple-700 p-1 rounded">💸</span> Add Expense
                 </h3>
@@ -285,7 +296,7 @@
             </div>
 
             <!-- Archive Zone -->
-            <div class="bg-red-50 p-4 rounded-lg border border-red-100">
+            <div class="bg-red-50 p-4 rounded-lg border border-red-100" id="admin-archive-zone">
                 <h3 class="text-xs font-bold text-red-600 uppercase mb-2">Admin Actions</h3>
                 <button onclick="archiveYear()" class="w-full bg-white border border-red-300 text-red-700 py-2 rounded-lg text-sm font-bold hover:bg-red-50 flex justify-center items-center gap-2 shadow-sm">
                     📦 Archive & Start New Year
@@ -295,7 +306,7 @@
                 </p>
             </div>
             
-            <div class="pt-4 border-t border-slate-100">
+            <div class="pt-4 border-t border-slate-100" id="settings-save-area">
                 <button onclick="saveSettings()" class="w-full bg-slate-900 text-white py-3 rounded-xl hover:bg-slate-800 font-medium">
                     Save Changes
                 </button>
@@ -328,7 +339,7 @@
         </div>
 
         <!-- Modal Footer -->
-        <div class="p-4 border-t border-slate-100 bg-white shrink-0">
+        <div class="p-4 border-t border-slate-100 bg-white shrink-0" id="event-modal-footer">
             <button onclick="saveEvent()" class="w-full bg-purple-600 text-white py-3 rounded-xl hover:bg-purple-700 font-medium shadow-md transition transform active:scale-[0.99]">
                 Save Event
             </button>
@@ -348,6 +359,7 @@
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
     let expensesData = JSON.parse(localStorage.getItem('arts_expenses_data') || '[]');
     let appName = localStorage.getItem('arts_app_name') || 'Arts Events Manager';
+    let budgetData = JSON.parse(localStorage.getItem('arts_budget_data') || '[]');
     
     const DEFAULT_BUDGET_MONTHS = [
         { name: "July", allocated: 0 },
@@ -364,7 +376,6 @@
         { name: "June", allocated: 0 }
     ];
     
-    let budgetData = JSON.parse(localStorage.getItem('arts_budget_data') || '[]');
     if (budgetData.length === 0) {
         budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
     }
@@ -385,6 +396,9 @@
     let editingEventId = null; 
     let tempFiles = {}; 
     let currentView = 'events';
+    
+    // READ ONLY FLAG
+    let isReadOnly = false;
 
     // ==============================================================
     // 2. HELPER FUNCTIONS
@@ -474,9 +488,104 @@
         if (viewName === 'budget') renderBudgetView();
         if (viewName === 'photos') renderPhotosView();
     };
+    
+    window.toggleBudgetBreakdown = function() {
+        const content = document.getElementById('budget-breakdown-content');
+        const caret = document.getElementById('budget-caret');
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            caret.classList.remove('rotate-90');
+        } else {
+            content.classList.add('hidden');
+            caret.classList.add('rotate-90');
+        }
+    }
 
     // ==============================================================
-    // 4. PDF GENERATION
+    // 4. ARCHIVE & READ-ONLY LOGIC
+    // ==============================================================
+
+    window.fetchArchiveList = async function() {
+        const listDiv = document.getElementById('archive-list');
+        listDiv.innerHTML = '<div class="text-xs text-slate-400 p-2">Loading archives...</div>';
+        try {
+            const res = await fetch(`${CLOUD_URL}?action=listArchives`);
+            const json = await res.json();
+            
+            if (json.archives && json.archives.length > 0) {
+                listDiv.innerHTML = json.archives.map(a => 
+                    `<button onclick="loadArchive('${a}')" class="block w-full text-left text-xs font-medium py-2 px-2 hover:bg-slate-100 rounded text-purple-600 transition border-b border-slate-50 last:border-0">📂 ${a}</button>`
+                ).join('');
+            } else {
+                listDiv.innerHTML = '<div class="text-xs text-slate-400 p-2">No archives found.</div>';
+            }
+        } catch(e) {
+            console.error(e);
+            listDiv.innerHTML = '<div class="text-xs text-red-400 p-2">Error fetching list.</div>';
+        }
+    };
+    
+    window.loadArchive = async function(name) {
+        if(!confirm(`Load archive "${name}"? The app will be in READ-ONLY mode.`)) return;
+        
+        document.getElementById('sync-text').innerText = "Loading Archive...";
+        
+        try {
+            const res = await fetch(`${CLOUD_URL}?archive=${name}`); 
+            const data = await res.json();
+            
+            if (data.events) {
+                // Temporarily overwrite local variables (NOT localStorage to protect live data)
+                eventsData = data.events;
+                expensesData = data.expenses || [];
+                budgetData = data.budgets || [];
+                if(data.settings) appName = data.settings.appName || appName;
+                
+                isReadOnly = true;
+                
+                // Update UI
+                renderAppTitle();
+                renderEvents();
+                renderBudgetView();
+                renderPhotosView();
+                updateReadOnlyUI(name);
+                closeSettings();
+            }
+        } catch(e) {
+            alert("Failed to load archive: " + e);
+        }
+    };
+
+    function updateReadOnlyUI(archiveName) {
+        // 1. Update Top Bar Status
+        const statusDot = document.getElementById('sync-dot');
+        const statusText = document.getElementById('sync-text');
+        statusDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+        statusText.innerHTML = `<span class="text-red-600 font-bold uppercase">ARCHIVED VIEW: ${archiveName}</span>`;
+        
+        // 2. Replace "New Event" button with "Exit Archive"
+        const actionArea = document.getElementById('main-action-area');
+        actionArea.innerHTML = `
+            <button onclick="location.reload()" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-medium shadow-md flex items-center gap-2">
+                <span>↩</span> Exit Archive View
+            </button>
+        `;
+        
+        // 3. Hide Inputs in Budget View
+        document.getElementById('expense-form-card').classList.add('hidden');
+        document.getElementById('add-month-container').classList.add('hidden');
+        
+        // 4. Hide Admin/Save Settings
+        document.getElementById('admin-archive-zone').classList.add('hidden');
+        document.getElementById('settings-save-area').classList.add('hidden');
+        document.getElementById('live-settings-actions').classList.add('hidden');
+        
+        // 5. Disable Inputs Globally
+        // Note: We re-render views after setting isReadOnly=true to handle specific elements in render functions
+    }
+
+    // ==============================================================
+    // 5. PDF GENERATION
     // ==============================================================
     
     window.downloadPDF = function() {
@@ -512,6 +621,10 @@
         const budgetClone = originalBudget.cloneNode(true);
         budgetClone.classList.remove('hidden');
         budgetClone.style.display = 'block';
+        
+        // Ensure table is visible for PDF even if collapsed in UI
+        const tblContent = budgetClone.querySelector('#budget-breakdown-content');
+        if(tblContent) tblContent.classList.remove('hidden');
 
         budgetClone.querySelectorAll('input').forEach(input => {
             const span = document.createElement('span');
@@ -568,7 +681,7 @@
     };
 
     // ==============================================================
-    // 5. RENDER FUNCTIONS
+    // 6. RENDER FUNCTIONS (With Read-Only Checks)
     // ==============================================================
 
     function renderFileCategories() {
@@ -582,10 +695,7 @@
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-semibold text-sm text-slate-700">${cat.label}</h3>
-                    <label class="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm transition">
-                        Upload File
-                        <input type="file" class="hidden file-input" data-cat="${cat.id}">
-                    </label>
+                    ${!isReadOnly ? `<label class="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm transition">Upload File<input type="file" class="hidden file-input" data-cat="${cat.id}"></label>` : ''}
                 </div>
                 <div id="file-list-${cat.id}" class="space-y-2">
                     ${(tempFiles[cat.id] && tempFiles[cat.id].length > 0) ? 
@@ -602,7 +712,7 @@
                                 </div>
                                 <div class="flex items-center gap-2">
                                     ${f.status === 'uploading' ? '<span class="text-[10px] text-purple-600 font-bold animate-pulse">Uploading...</span>' : ''}
-                                    <button onclick="removeFile('${cat.id}', '${f.id}')" class="text-red-400 hover:text-red-600 p-1">✕</button>
+                                    ${!isReadOnly ? `<button onclick="removeFile('${cat.id}', '${f.id}')" class="text-red-400 hover:text-red-600 p-1">✕</button>` : ''}
                                 </div>
                             </div>
                         `).join('') 
@@ -617,7 +727,7 @@
         grid.innerHTML = '';
 
         if (eventsData.length === 0) {
-            grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">No events found. Create an event to add photos.</div>';
+            grid.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10">No events found.</div>';
             return;
         }
 
@@ -646,16 +756,14 @@
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 uppercase">Cover Image URL</label>
                             <input type="text" value="${ev.coverImage || ''}" 
-                                onchange="updateEventPhoto('${ev.id}', 'coverImage', this.value)"
-                                class="w-full px-2 py-1 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"
+                                ${isReadOnly ? 'disabled class="read-only-input w-full px-2 py-1 text-xs border border-slate-200 rounded"' : `onchange="updateEventPhoto('${ev.id}', 'coverImage', this.value)" class="w-full px-2 py-1 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"`}
                                 placeholder="Paste image link...">
                         </div>
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 uppercase">Google Drive Link</label>
                             <div class="flex gap-1">
                                 <input type="text" value="${ev.photosLink || ''}" 
-                                    onchange="updateEventPhoto('${ev.id}', 'photosLink', this.value)"
-                                    class="flex-1 px-2 py-1 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"
+                                    ${isReadOnly ? 'disabled class="read-only-input flex-1 px-2 py-1 text-xs border border-slate-200 rounded"' : `onchange="updateEventPhoto('${ev.id}', 'photosLink', this.value)" class="flex-1 px-2 py-1 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"`}
                                     placeholder="Paste Drive link...">
                                 ${ev.photosLink ? `<a href="${ev.photosLink}" target="_blank" class="bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 hover:bg-blue-100 text-xs">↗</a>` : ''}
                             </div>
@@ -668,6 +776,7 @@
     }
 
     window.updateEventPhoto = function(id, field, value) {
+        if (isReadOnly) return;
         const ev = eventsData.find(e => e.id === id);
         if (ev) {
             ev[field] = value;
@@ -706,8 +815,8 @@
                     <div class="flex items-center text-slate-500">
                         <span class="mr-1">$</span>
                         <input type="number" value="${m.allocated}" 
-                            onchange="updateAllocation(${index}, this.value)"
-                            class="w-full px-2 py-1 border rounded text-xs bg-white focus:ring-2 focus:ring-purple-200 outline-none font-mono">
+                            ${isReadOnly ? 'disabled class="read-only-input w-full px-2 py-1 border rounded text-xs"' : `onchange="updateAllocation(${index}, this.value)" class="w-full px-2 py-1 border rounded text-xs bg-white focus:ring-2 focus:ring-purple-200 outline-none font-mono"`}
+                        >
                     </div>
                 </td>
                 <td class="px-4 py-3 font-mono font-bold text-blue-600">$${used.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
@@ -715,7 +824,7 @@
                     $${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}
                 </td>
                 <td class="px-4 py-3 text-center action-col">
-                    <button onclick="removeBudgetMonth(${index})" class="text-slate-300 hover:text-red-500">✕</button>
+                    ${!isReadOnly ? `<button onclick="removeBudgetMonth(${index})" class="text-slate-300 hover:text-red-500">✕</button>` : ''}
                 </td>
             `;
             monthsBody.appendChild(tr);
@@ -750,7 +859,7 @@
                 </div>
                 <div class="text-right">
                     <div class="font-mono font-bold text-slate-700">$${Number(exp.cost).toFixed(2)}</div>
-                    <button onclick="deleteExpense('${exp.id}')" class="text-red-400 hover:text-red-600 text-[10px]">Delete</button>
+                    ${!isReadOnly ? `<button onclick="deleteExpense('${exp.id}')" class="text-red-400 hover:text-red-600 text-[10px]">Delete</button>` : ''}
                 </div>
             `;
             expList.appendChild(div);
@@ -774,8 +883,8 @@
                 <td class="px-4 py-3 font-mono text-slate-500">$${foodCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                 <td class="px-4 py-3">
                     <input type="number" value="${attendance}" 
-                        onchange="updateAttendance('${ev.id}', this.value)"
-                        class="w-20 px-2 py-1 border rounded text-xs bg-white focus:ring-2 focus:ring-purple-200 outline-none" placeholder="0">
+                        ${isReadOnly ? 'disabled class="read-only-input w-20 px-2 py-1 border rounded text-xs"' : `onchange="updateAttendance('${ev.id}', this.value)" class="w-20 px-2 py-1 border rounded text-xs bg-white focus:ring-2 focus:ring-purple-200 outline-none"`}
+                        placeholder="0">
                 </td>
                 <td class="px-4 py-3 font-mono text-slate-600">$${costPerStudent.toFixed(2)}</td>
             `;
@@ -785,6 +894,7 @@
 
     function renderTableHeader() {
         const row = document.getElementById('table-header-row');
+        if (!row) return;
         row.innerHTML = `
             <th class="px-4 py-3 min-w-[180px] sticky left-0 bg-slate-900 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Event Name</th>
             <th class="px-4 py-3 min-w-[90px]">Date</th>
@@ -807,19 +917,20 @@
 
     function renderEvents() {
         const tbody = document.getElementById('events-body');
+        if (!tbody) return;
         tbody.innerHTML = '';
         
-        if (eventsData.length === 0) document.getElementById('empty-state').classList.replace('hidden','flex');
-        else document.getElementById('empty-state').classList.replace('flex','hidden');
+        if (eventsData.length === 0) {
+            document.getElementById('empty-state').classList.replace('hidden','flex');
+        } else {
+            document.getElementById('empty-state').classList.replace('flex','hidden');
+        }
 
         const sorted = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
 
         sorted.forEach(ev => {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-50 group border-b border-slate-50 last:border-0";
-            
-            // FIX: Removed explicit "flex" from <td>. Wrapped content in a div for alignment.
-            // FIX: Added date display instead of 'DONE' when completed.
             
             let html = `
                 <td class="px-4 py-3 font-semibold text-slate-900 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">
@@ -843,19 +954,20 @@
                 const status = getDeadlineStatus(m.date, m.completed);
                 const colorClass = getStatusClasses(status);
                 
-                // FIX: Always show date if available.
-                // Split and reconstruct to avoid off-by-one error in display
                 let displayDate = '-';
                 if (m.date) {
                     const [y, mo, d] = m.date.split('-');
                     displayDate = `${parseInt(mo)}/${parseInt(d)}`;
                 }
                 
+                const buttonAction = (typeof isReadOnly !== 'undefined' && isReadOnly) ? '' : `onclick="toggleDeadline('${ev.id}', '${key}')"`;
+                const cursorClass = (typeof isReadOnly !== 'undefined' && isReadOnly) ? 'cursor-default' : 'cursor-pointer';
+                
                 html += `
                     <td class="px-2 py-3 border-l border-slate-100 text-center bg-opacity-50 ${status === 'overdue' ? 'bg-red-50/30' : ''}">
                         ${m.date ? `
                             <div class="flex flex-col gap-1 items-center">
-                                <button onclick="toggleDeadline('${ev.id}', '${key}')" class="w-full py-1 px-1 rounded text-[10px] font-bold border transition-all ${colorClass}">
+                                <button ${buttonAction} class="w-full py-1 px-1 rounded text-[10px] font-bold border transition-all ${colorClass} ${cursorClass}">
                                     ${displayDate}
                                 </button>
                                 ${m.assignee ? `<span class="text-[9px] text-slate-400">${m.assignee}</span>` : ''}
@@ -865,10 +977,12 @@
                 `;
             });
 
+            const readOnlyMode = (typeof isReadOnly !== 'undefined' && isReadOnly);
+
             html += `
                 <td class="px-4 py-3 border-l border-slate-100"><span class="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded-full">${ev.cart || '-'}</span></td>
                 <td class="px-4 py-3">
-                    <select onchange="updateStatus('${ev.id}', this.value)" class="text-[10px] font-bold px-2 py-1 rounded border-none bg-slate-100">
+                    <select ${readOnlyMode ? 'disabled' : ''} onchange="updateStatus('${ev.id}', this.value)" class="text-[10px] font-bold px-2 py-1 rounded border-none bg-slate-100 ${readOnlyMode?'cursor-not-allowed':''}">
                         <option ${ev.status==='Submit'?'selected':''}>Submit</option>
                         <option ${ev.status==='Pending'?'selected':''}>Pending</option>
                         <option ${ev.status==='Approved'?'selected':''}>Approved</option>
@@ -877,7 +991,7 @@
                 </td>
                 <td class="px-4 py-3 text-right">
                     <button onclick="openEventEditor('${ev.id}')" class="text-slate-400 hover:text-blue-500">✎</button>
-                    <button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-red-500 ml-2">✕</button>
+                    ${!readOnlyMode ? `<button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-red-500 ml-2">✕</button>` : ''}
                 </td>
             `;
             tr.innerHTML = html;
@@ -886,16 +1000,18 @@
     }
 
     // ==============================================================
-    // 6. DATA & SYNC LOGIC
+    // 7. DATA & SYNC LOGIC
     // ==============================================================
 
     window.updateAllocation = function(index, value) {
+        if (isReadOnly) return;
         budgetData[index].allocated = Number(value) || 0;
         saveLocal();
         renderBudgetView();
     };
     
     window.addBudgetMonth = function() {
+        if (isReadOnly) return;
         const name = prompt("Enter Month Name (e.g., 'July 2025'):");
         if (name) {
             budgetData.push({ name: name, allocated: 0 });
@@ -905,6 +1021,7 @@
     };
     
     window.removeBudgetMonth = function(index) {
+        if (isReadOnly) return;
         if(confirm("Are you sure you want to remove this month from the budget? This cannot be undone.")) {
             budgetData.splice(index, 1);
             saveLocal();
@@ -913,6 +1030,7 @@
     };
     
     window.resetBudgetDefaults = function() {
+        if (isReadOnly) return;
         if(confirm("Reset all budget months to defaults? Amounts will be reset.")) {
             budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
             saveLocal();
@@ -922,6 +1040,7 @@
     };
 
     window.addExpense = function() {
+        if (isReadOnly) return;
         const name = document.getElementById('exp-name').value;
         const cost = document.getElementById('exp-cost').value;
         const date = document.getElementById('exp-date').value;
@@ -945,6 +1064,7 @@
     };
 
     window.deleteExpense = function(id) {
+        if (isReadOnly) return;
         if(!confirm("Are you sure you want to permanently delete this expense?")) return;
         expensesData = expensesData.filter(e => e.id !== id);
         saveLocal();
@@ -952,6 +1072,7 @@
     };
 
     window.updateAttendance = function(eventId, val) {
+        if (isReadOnly) return;
         const ev = eventsData.find(e => e.id === eventId);
         if(ev) {
             ev.attendance = val;
@@ -970,6 +1091,9 @@
     function updateSyncUI() {
         const dot = document.getElementById('sync-dot');
         const text = document.getElementById('sync-text');
+        if (!dot || !text) return; // Safety check
+        if (isReadOnly) return; // Handled by updateReadOnlyUI
+
         if (isSyncing) {
             dot.className = "loader border-slate-400 border-t-purple-600";
             text.innerText = "Syncing...";
@@ -980,12 +1104,14 @@
     }
     
     window.manualForceSync = async function() {
+        if (isReadOnly) return alert("Cannot sync in Read-Only mode.");
         if (!confirm("Force data push to Google Sheets?")) return;
         await syncToCloud();
         alert("Sync command sent.");
     }
     
     window.archiveYear = async function() {
+        if (isReadOnly) return alert("Cannot archive while viewing an archive.");
         const yearName = prompt("Enter name for Archive (e.g., 2024-2025):");
         if (!yearName) return;
         
@@ -1021,7 +1147,7 @@
     };
 
     async function syncToCloud() {
-        if (!CLOUD_URL) return;
+        if (!CLOUD_URL || isReadOnly) return;
         isSyncing = true;
         updateSyncUI();
 
@@ -1048,7 +1174,7 @@
     }
 
     async function loadFromCloud() {
-        if (!CLOUD_URL || isSyncing) return;
+        if (!CLOUD_URL || isSyncing || isReadOnly) return;
         try {
             const res = await fetch(CLOUD_URL);
             const data = await res.json();
@@ -1097,11 +1223,11 @@
     }
 
     // ==============================================================
-    // 7. MODAL LOGIC & UPLOAD
+    // 8. MODAL LOGIC & UPLOAD
     // ==============================================================
 
     async function uploadToDrive(file, uiCallback) {
-        if (!CLOUD_URL) return null;
+        if (!CLOUD_URL || isReadOnly) return null;
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onerror = () => { uiCallback('Error'); resolve(null); };
@@ -1154,6 +1280,7 @@
     }
 
     window.removeFile = function(cat, fileId) {
+        if (isReadOnly) return;
         if(!confirm("Are you sure you want to delete this file link?")) return;
         tempFiles[cat] = tempFiles[cat].filter(f => f.id !== fileId);
         renderFilesTab();
@@ -1167,34 +1294,39 @@
         // Ensure deep copy of notes and files
         tempFiles = JSON.parse(JSON.stringify(data.files || { general:[], marketing:[], amazon:[] }));
         
+        // MODAL CONTENT GENERATION (Read-Only aware)
+        const disabledAttr = isReadOnly ? 'disabled' : '';
+        const roClass = isReadOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white';
+        const saveBtnClass = isReadOnly ? 'hidden' : 'w-full bg-purple-600 text-white py-3 rounded-xl hover:bg-purple-700 font-medium shadow-md transition transform active:scale-[0.99]';
+
         document.getElementById('event-modal-content').innerHTML = `
             <div id="form-tab-details" class="space-y-6">
-                <!-- DETAILS FORM (Same as before) -->
+                <!-- DETAILS FORM -->
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" value="${data.name||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Date</label><input type="date" id="form-date" value="${data.date||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Time</label><input id="form-time" value="${data.time||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Location</label><input id="form-location" value="${data.location||''}" class="w-full px-3 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Budget</label><input type="number" id="form-budget" value="${data.budget||''}" class="w-full px-3 py-2 border rounded"></div>
+                    <div class="col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" ${disabledAttr} value="${data.name||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Date</label><input type="date" id="form-date" ${disabledAttr} value="${data.date||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Time</label><input id="form-time" ${disabledAttr} value="${data.time||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Location</label><input id="form-location" ${disabledAttr} value="${data.location||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Budget</label><input type="number" id="form-budget" ${disabledAttr} value="${data.budget||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
                 </div>
                 <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
                     <div>
                         <label class="text-xs font-bold text-slate-500">Cart</label>
-                        <select id="form-cart" class="w-full px-2 py-2 border rounded bg-white">
+                        <select id="form-cart" ${disabledAttr} class="w-full px-2 py-2 border rounded ${roClass}">
                             <option>Caddy</option>
                             <option>Clubs Cart</option>
                             <option>None</option>
                         </select>
                     </div>
-                    <div><label class="text-xs font-bold text-slate-500">Contact</label><input id="form-contact" value="${data.contact||''}" class="w-full px-2 py-2 border rounded"></div>
-                    <div><label class="text-xs font-bold text-slate-500">Status</label><select id="form-status" class="w-full px-2 py-2 border rounded bg-white"><option>Submit</option><option>Pending</option><option>Approved</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">Contact</label><input id="form-contact" ${disabledAttr} value="${data.contact||''}" class="w-full px-2 py-2 border rounded ${roClass}"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Status</label><select id="form-status" ${disabledAttr} class="w-full px-2 py-2 border rounded ${roClass}"><option>Submit</option><option>Pending</option><option>Approved</option></select></div>
                 </div>
                 <div class="border-t pt-4">
                     <h3 class="text-sm font-bold text-slate-700 mb-3">Deadlines</h3>
                     <div class="grid grid-cols-3 gap-3">
                         ${MILESTONE_KEYS.map(k => {
                             const m = data.deadlines?.[k] || {};
-                            return `<div class="bg-white border rounded p-2"><div class="flex justify-between mb-1"><label class="text-xs font-bold">${columnLabels[k]||k}</label><input type="checkbox" id="c-${k}" ${m.completed?'checked':''}></div><input type="date" id="d-${k}" value="${m.date||''}" class="w-full text-xs border rounded mb-1"><input id="a-${k}" value="${m.assignee||''}" placeholder="Name" class="w-full text-xs border rounded"></div>`
+                            return `<div class="bg-white border rounded p-2"><div class="flex justify-between mb-1"><label class="text-xs font-bold">${columnLabels[k]||k}</label><input type="checkbox" id="c-${k}" ${m.completed?'checked':''} ${disabledAttr}></div><input type="date" id="d-${k}" ${disabledAttr} value="${m.date||''}" class="w-full text-xs border rounded mb-1 ${roClass}"><input id="a-${k}" ${disabledAttr} value="${m.assignee||''}" placeholder="Name" class="w-full text-xs border rounded ${roClass}"></div>`
                         }).join('')}
                     </div>
                 </div>
@@ -1204,7 +1336,7 @@
             <div id="form-tab-files" class="hidden space-y-6">
                 <div>
                     <label class="text-xs font-bold text-slate-500 uppercase mb-1">Event Notes</label>
-                    <textarea id="form-notes" class="w-full p-3 border border-slate-300 rounded-lg h-32 text-sm focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Add specific notes, gate codes, or reminders here...">${data.notes||''}</textarea>
+                    <textarea id="form-notes" ${disabledAttr} class="w-full p-3 border border-slate-300 rounded-lg h-32 text-sm focus:ring-2 focus:ring-purple-200 outline-none ${roClass}" placeholder="Add specific notes, gate codes, or reminders here...">${data.notes||''}</textarea>
                 </div>
                 
                 <div class="border-t pt-4">
@@ -1216,6 +1348,11 @@
             </div>
         `;
         
+        // Update Footer button visibility
+        const footer = document.getElementById('event-modal-footer');
+        if(isReadOnly) footer.classList.add('hidden');
+        else footer.classList.remove('hidden');
+
         if(data.cart) document.getElementById('form-cart').value = data.cart;
         if(data.status) document.getElementById('form-status').value = data.status;
         
@@ -1231,6 +1368,7 @@
     window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
 
     window.saveEvent = function() {
+        if (isReadOnly) return;
         const name = document.getElementById('form-name').value;
         if(!name) return alert("Name required");
         
@@ -1272,6 +1410,7 @@
     };
 
     window.toggleDeadline = function(id, k) {
+        if (isReadOnly) return;
         const ev = eventsData.find(e=>e.id===id);
         if(ev) {
             if(!ev.deadlines) ev.deadlines={};
@@ -1283,11 +1422,13 @@
     };
     
     window.updateStatus = function(id, val) {
+        if (isReadOnly) return;
         const ev = eventsData.find(e=>e.id===id);
         if(ev) { ev.status = val; saveLocal(); }
     }
 
     window.deleteEvent = function(id) {
+        if (isReadOnly) return;
         if(confirm("Are you sure you want to delete this event? All associated data will be lost.")) {
             eventsData = eventsData.filter(e=>e.id!==id);
             saveLocal();
@@ -1299,11 +1440,13 @@
     // 8. Settings & Init
     window.openSettings = function() {
         document.getElementById('settings-modal').classList.remove('hidden');
-        document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `<div class="flex items-center gap-2 mb-2"><span class="w-24 text-xs font-bold">${k}</span><input id="set-${k}" value="${columnLabels[k]}" class="flex-1 border rounded px-2 py-1 text-sm"></div>`).join('');
+        document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `<div class="flex items-center gap-2 mb-2"><span class="w-24 text-xs font-bold">${k}</span><input id="set-${k}" value="${columnLabels[k]}" ${isReadOnly?'disabled class="read-only-input flex-1 border rounded px-2 py-1 text-sm"':'class="flex-1 border rounded px-2 py-1 text-sm"'}></div>`).join('');
         document.getElementById('setting-app-name').value = appName;
+        if (isReadOnly) document.getElementById('setting-app-name').disabled = true;
     };
     window.closeSettings = function() { document.getElementById('settings-modal').classList.add('hidden'); };
     window.saveSettings = function() {
+        if (isReadOnly) return;
         MILESTONE_KEYS.forEach(k => columnLabels[k] = document.getElementById(`set-${k}`).value);
         appName = document.getElementById('setting-app-name').value; 
         saveLocal();
