@@ -473,12 +473,11 @@
     // ==============================================================
     
     window.downloadPDF = function() {
-        // Create Master Container
         const container = document.createElement('div');
         container.style.padding = '20px';
         container.style.fontFamily = 'sans-serif';
 
-        // --- SECTION 1: EVENTS ---
+        // SECTION 1: EVENTS
         const eventsHeader = document.createElement('h2');
         eventsHeader.innerText = `${appName} - Events Overview`;
         eventsHeader.style.textAlign = 'center';
@@ -486,14 +485,13 @@
         container.appendChild(eventsHeader);
 
         const eventsTable = document.getElementById('events-table-main').cloneNode(true);
-        // Clean Events Table: Remove Last Column (Actions)
         const rows = eventsTable.rows;
         for (let i = 0; i < rows.length; i++) {
             if (rows[i].cells.length > 0) rows[i].deleteCell(-1);
         }
         container.appendChild(eventsTable);
 
-        // --- SECTION 2: BUDGET ---
+        // SECTION 2: BUDGET
         const budgetContainer = document.createElement('div');
         budgetContainer.style.pageBreakBefore = 'always';
         
@@ -533,7 +531,7 @@
         budgetContainer.appendChild(budgetClone);
         container.appendChild(budgetContainer);
 
-        // --- SECTION 3: PHOTOS ---
+        // SECTION 3: PHOTOS
         const photoContainer = document.createElement('div');
         photoContainer.style.pageBreakBefore = 'always';
         
@@ -565,6 +563,47 @@
     // ==============================================================
     // 5. RENDER FUNCTIONS
     // ==============================================================
+
+    function renderFileCategories() {
+        const categories = [
+            { id: "general", label: "Event Checklist & General" },
+            { id: "marketing", label: "Marketing Requests" },
+            { id: "amazon", label: "Amazon Orders" }
+        ];
+
+        return categories.map(cat => `
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-semibold text-sm text-slate-700">${cat.label}</h3>
+                    <label class="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm transition">
+                        Upload File
+                        <input type="file" class="hidden file-input" data-cat="${cat.id}">
+                    </label>
+                </div>
+                <div id="file-list-${cat.id}" class="space-y-2">
+                    ${(tempFiles[cat.id] && tempFiles[cat.id].length > 0) ? 
+                        tempFiles[cat.id].map(f => `
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
+                                <div class="flex items-center gap-2 overflow-hidden">
+                                    <span class="text-lg">📄</span>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-slate-800 truncate">
+                                            ${f.url ? `<a href="${f.url}" target="_blank" class="text-blue-600 hover:underline">${f.name}</a>` : f.name}
+                                        </div>
+                                        <div class="text-[10px] text-slate-400">${f.size || 'Drive File'} • ${f.date}</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    ${f.status === 'uploading' ? '<span class="text-[10px] text-purple-600 font-bold animate-pulse">Uploading...</span>' : ''}
+                                    <button onclick="removeFile('${cat.id}', '${f.id}')" class="text-red-400 hover:text-red-600 p-1">✕</button>
+                                </div>
+                            </div>
+                        `).join('') 
+                    : '<div class="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg text-xs text-slate-400">No files uploaded yet</div>'}
+                </div>
+            </div>
+        `).join('');
+    }
 
     function renderPhotosView() {
         const grid = document.getElementById('photos-grid');
