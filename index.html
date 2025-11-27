@@ -49,7 +49,7 @@
     <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
         <div class="flex flex-col items-center lg:items-start">
-            <!-- APP TITLE (Now Editable via ID) -->
+            <!-- APP TITLE -->
             <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
@@ -384,12 +384,10 @@
     let syncInterval = null;
     let editingEventId = null; 
     let tempFiles = {}; 
-    
-    // Current active view tracker
     let currentView = 'events';
 
     // ==============================================================
-    // 2. HELPER FUNCTIONS (Moved Up for Safety)
+    // 2. HELPER FUNCTIONS
     // ==============================================================
 
     function formatDate(dateStr) {
@@ -433,7 +431,7 @@
     }
 
     // ==============================================================
-    // 3. INIT
+    // 3. CORE UI & INIT
     // ==============================================================
     
     function initApp() {
@@ -446,10 +444,6 @@
         startCloudSync();
     }
 
-    // ==============================================================
-    // 4. VIEW SWITCHING
-    // ==============================================================
-    
     window.switchView = function(viewName) {
         currentView = viewName;
         const views = {
@@ -464,11 +458,9 @@
             photos: document.getElementById('nav-photos')
         };
 
-        // Reset all
         Object.values(views).forEach(el => el.classList.add('hidden'));
         Object.values(tabs).forEach(el => el.classList.remove('active'));
 
-        // Activate selected
         if (views[viewName]) views[viewName].classList.remove('hidden');
         if (tabs[viewName]) tabs[viewName].classList.add('active');
 
@@ -477,7 +469,7 @@
     };
 
     // ==============================================================
-    // 5. PDF GENERATION
+    // 4. PDF GENERATION
     // ==============================================================
     
     window.downloadPDF = function() {
@@ -511,43 +503,32 @@
         budgetHeader.style.marginBottom = '20px';
         budgetContainer.appendChild(budgetHeader);
 
-        // Clone Budget View (ensure visible)
         const originalBudget = document.getElementById('view-budget');
         const budgetClone = originalBudget.cloneNode(true);
         budgetClone.classList.remove('hidden');
         budgetClone.style.display = 'block';
 
-        // Clean Budget Clone: Inputs to Text, Remove Forms
         budgetClone.querySelectorAll('input').forEach(input => {
             const span = document.createElement('span');
             span.innerText = input.value;
-            // Format allocated amounts
             if(input.type === 'number' && input.value) {
                 span.innerText = '$' + Number(input.value).toLocaleString();
             }
             input.parentNode.replaceChild(span, input);
         });
 
-        // Remove unwanted elements in Budget
         const addMonthBtn = budgetClone.querySelector('button[onclick="addBudgetMonth()"]')?.parentNode;
         if(addMonthBtn) addMonthBtn.remove();
 
-        // Remove "Add Expense" form card
         const headers = budgetClone.querySelectorAll('h3');
         headers.forEach(h3 => {
             if(h3.innerText.includes('Add Expense')) {
-                h3.closest('.bg-white').remove(); // Remove parent card
+                h3.closest('.bg-white').remove();
             }
         });
         
-        // Remove delete/action buttons
         budgetClone.querySelectorAll('button').forEach(b => b.remove());
         budgetClone.querySelectorAll('.action-col').forEach(c => c.remove());
-        
-        // Hide "Troubleshooting" if it got cloned (unlikely but safe)
-        budgetClone.querySelectorAll('.bg-slate-50.rounded-lg').forEach(el => {
-           if (el.innerText.includes('Troubleshooting')) el.remove();
-        });
         
         budgetContainer.appendChild(budgetClone);
         container.appendChild(budgetContainer);
@@ -563,7 +544,6 @@
         photoContainer.appendChild(photoHeader);
 
         const photosGrid = document.getElementById('photos-grid').cloneNode(true);
-        // Clean Photos: Remove inputs/labels
         photosGrid.querySelectorAll('input').forEach(el => el.remove());
         photosGrid.querySelectorAll('label').forEach(el => el.remove());
         photosGrid.querySelectorAll('.mt-auto').forEach(el => el.remove()); 
@@ -571,7 +551,6 @@
         photoContainer.appendChild(photosGrid);
         container.appendChild(photoContainer);
 
-        // Generate PDF
         let opt = {
             margin:       0.5,
             filename:     `${appName}_Full_Report.pdf`,
@@ -584,7 +563,7 @@
     };
 
     // ==============================================================
-    // 6. PHOTOS LOGIC
+    // 5. RENDER FUNCTIONS
     // ==============================================================
 
     function renderPhotosView() {
@@ -601,7 +580,6 @@
         sorted.forEach(ev => {
             const card = document.createElement('div');
             card.className = "bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col";
-            
             const bgImage = ev.coverImage || 'https://via.placeholder.com/400x225/f1f5f9/cbd5e1?text=No+Cover+Image';
             
             card.innerHTML = `
@@ -651,10 +629,6 @@
             if (field === 'coverImage') renderPhotosView();
         }
     };
-
-    // ==============================================================
-    // 7. BUDGET LOGIC & RENDERING
-    // ==============================================================
 
     function renderBudgetView() {
         const monthsBody = document.getElementById('budget-months-body');
@@ -763,6 +737,93 @@
         });
     }
 
+    function renderTableHeader() {
+        const row = document.getElementById('table-header-row');
+        row.innerHTML = `
+            <th class="px-4 py-3 min-w-[180px] sticky left-0 bg-slate-900 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Event Name</th>
+            <th class="px-4 py-3 min-w-[90px]">Date</th>
+            <th class="px-4 py-3 min-w-[90px]">Time</th>
+            <th class="px-4 py-3 min-w-[100px]">Location</th>
+            <th class="px-4 py-3 min-w-[90px]">Budget</th>
+            <!-- DYNAMIC HERE -->
+            <th class="px-4 py-3 min-w-[90px]">Cart</th>
+            <th class="px-4 py-3 min-w-[100px]">Status</th>
+            <th class="px-4 py-3 w-[60px]"></th>
+        `;
+        const refNode = row.children[5];
+        MILESTONE_KEYS.forEach(key => {
+            const th = document.createElement('th');
+            th.className = "px-4 py-3 min-w-[130px] bg-slate-900 text-center uppercase tracking-wider text-slate-100 font-bold";
+            th.textContent = columnLabels[key] || key;
+            row.insertBefore(th, refNode);
+        });
+    }
+
+    function renderEvents() {
+        const tbody = document.getElementById('events-body');
+        tbody.innerHTML = '';
+        
+        if (eventsData.length === 0) document.getElementById('empty-state').classList.replace('hidden','flex');
+        else document.getElementById('empty-state').classList.replace('flex','hidden');
+
+        const sorted = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+        sorted.forEach(ev => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 group border-b border-slate-50 last:border-0";
+            
+            let html = `
+                <td class="px-4 py-3 font-semibold text-slate-900 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">
+                    ${ev.name} ${(ev.files && Object.values(ev.files).flat().length) ? '📎' : ''}
+                </td>
+                <td class="px-4 py-3 text-slate-600 text-xs">${formatDate(ev.date)}</td>
+                <td class="px-4 py-3 text-slate-600 text-xs">${ev.time || '-'}</td>
+                <td class="px-4 py-3 text-slate-600 text-xs truncate max-w-[100px]">${ev.location || '-'}</td>
+                <td class="px-4 py-3 text-slate-600 font-mono text-xs">$${(ev.budget || 0).toLocaleString()}</td>
+            `;
+
+            MILESTONE_KEYS.forEach(key => {
+                const m = ev.deadlines?.[key] || {};
+                const status = getDeadlineStatus(m.date, m.completed);
+                const colorClass = getStatusClasses(status);
+                html += `
+                    <td class="px-2 py-3 border-l border-slate-100 text-center bg-opacity-50 ${status === 'overdue' ? 'bg-red-50/30' : ''}">
+                        ${m.date ? `
+                            <div class="flex flex-col gap-1 items-center">
+                                <button onclick="toggleDeadline('${ev.id}', '${key}')" class="w-full py-1 px-1 rounded text-[10px] font-bold border transition-all ${colorClass}">
+                                    ${m.completed ? 'DONE' : new Date(m.date).getMonth()+1 + '/' + new Date(m.date).getDate()}
+                                </button>
+                                ${m.assignee ? `<span class="text-[9px] text-slate-400">${m.assignee}</span>` : ''}
+                            </div>
+                        ` : '<span class="text-slate-200">-</span>'}
+                    </td>
+                `;
+            });
+
+            html += `
+                <td class="px-4 py-3 border-l border-slate-100"><span class="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded-full">${ev.cart || '-'}</span></td>
+                <td class="px-4 py-3">
+                    <select onchange="updateStatus('${ev.id}', this.value)" class="text-[10px] font-bold px-2 py-1 rounded border-none bg-slate-100">
+                        <option ${ev.status==='Submit'?'selected':''}>Submit</option>
+                        <option ${ev.status==='Pending'?'selected':''}>Pending</option>
+                        <option ${ev.status==='Approved'?'selected':''}>Approved</option>
+                        <option ${ev.status==='Denied'?'selected':''}>Denied</option>
+                    </select>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <button onclick="openEventEditor('${ev.id}')" class="text-slate-400 hover:text-blue-500">✎</button>
+                    <button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-red-500 ml-2">✕</button>
+                </td>
+            `;
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ==============================================================
+    // 6. DATA & SYNC LOGIC
+    // ==============================================================
+
     window.updateAllocation = function(index, value) {
         budgetData[index].allocated = Number(value) || 0;
         saveLocal();
@@ -833,11 +894,7 @@
             renderBudgetView(); 
         }
     };
-
-    // ==============================================================
-    // 8. CLOUD SYNC (ARCHIVE LOGIC)
-    // ==============================================================
-
+    
     function startCloudSync() {
         updateSyncUI();
         if (syncInterval) clearInterval(syncInterval);
@@ -975,9 +1032,9 @@
     }
 
     // ==============================================================
-    // 9. UPLOAD LOGIC
+    // 7. MODAL LOGIC & UPLOAD
     // ==============================================================
-    
+
     async function uploadToDrive(file, uiCallback) {
         if (!CLOUD_URL) return null;
         return new Promise((resolve, reject) => {
@@ -1040,113 +1097,140 @@
         renderFilesTab();
     };
 
-    // ==============================================================
-    // 10. UI COMPONENTS
-    // ==============================================================
-
-    function renderTableHeader() {
-        const row = document.getElementById('table-header-row');
-        row.innerHTML = `
-            <th class="px-4 py-3 min-w-[180px] sticky left-0 bg-slate-900 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Event Name</th>
-            <th class="px-4 py-3 min-w-[90px]">Date</th>
-            <th class="px-4 py-3 min-w-[90px]">Time</th>
-            <th class="px-4 py-3 min-w-[100px]">Location</th>
-            <th class="px-4 py-3 min-w-[90px]">Budget</th>
-            <!-- DYNAMIC HERE -->
-            <th class="px-4 py-3 min-w-[90px]">Cart</th>
-            <th class="px-4 py-3 min-w-[100px]">Status</th>
-            <th class="px-4 py-3 w-[60px]"></th>
-        `;
-        const refNode = row.children[5];
-        MILESTONE_KEYS.forEach(key => {
-            const th = document.createElement('th');
-            th.className = "px-4 py-3 min-w-[130px] bg-slate-900 text-center uppercase tracking-wider text-slate-100 font-bold";
-            th.textContent = columnLabels[key] || key;
-            row.insertBefore(th, refNode);
-        });
-    }
-
-    function renderEvents() {
-        const tbody = document.getElementById('events-body');
-        tbody.innerHTML = '';
+    function openEventEditor(id) {
+        editingEventId = id;
+        document.getElementById('event-modal').classList.remove('hidden');
         
-        if (eventsData.length === 0) document.getElementById('empty-state').classList.replace('hidden','flex');
-        else document.getElementById('empty-state').classList.replace('flex','hidden');
-
-        const sorted = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
-
-        sorted.forEach(ev => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 group border-b border-slate-50 last:border-0";
-            
-            let html = `
-                <td class="px-4 py-3 font-semibold text-slate-900 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">
-                    ${ev.name} ${(ev.files && Object.values(ev.files).flat().length) ? '📎' : ''}
-                </td>
-                <td class="px-4 py-3 text-slate-600 text-xs">${ev.date}</td>
-                <td class="px-4 py-3 text-slate-600 text-xs">${ev.time || '-'}</td>
-                <td class="px-4 py-3 text-slate-600 text-xs truncate max-w-[100px]">${ev.location || '-'}</td>
-                <td class="px-4 py-3 text-slate-600 font-mono text-xs">$${(ev.budget || 0).toLocaleString()}</td>
-            `;
-
-            MILESTONE_KEYS.forEach(key => {
-                const m = ev.deadlines?.[key] || {};
-                const status = getDeadlineStatus(m.date, m.completed);
-                const colorClass = getStatusClasses(status);
-                html += `
-                    <td class="px-2 py-3 border-l border-slate-100 text-center bg-opacity-50 ${status === 'overdue' ? 'bg-red-50/30' : ''}">
-                        ${m.date ? `
-                            <div class="flex flex-col gap-1 items-center">
-                                <button onclick="toggleDeadline('${ev.id}', '${key}')" class="w-full py-1 px-1 rounded text-[10px] font-bold border transition-all ${colorClass}">
-                                    ${m.completed ? 'DONE' : new Date(m.date).getMonth()+1 + '/' + new Date(m.date).getDate()}
-                                </button>
-                                ${m.assignee ? `<span class="text-[9px] text-slate-400">${m.assignee}</span>` : ''}
-                            </div>
-                        ` : '<span class="text-slate-200">-</span>'}
-                    </td>
-                `;
-            });
-
-            html += `
-                <td class="px-4 py-3 border-l border-slate-100"><span class="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded-full">${ev.cart || '-'}</span></td>
-                <td class="px-4 py-3">
-                    <select onchange="updateStatus('${ev.id}', this.value)" class="text-[10px] font-bold px-2 py-1 rounded border-none bg-slate-100">
-                        <option ${ev.status==='Submit'?'selected':''}>Submit</option>
-                        <option ${ev.status==='Pending'?'selected':''}>Pending</option>
-                        <option ${ev.status==='Approved'?'selected':''}>Approved</option>
-                        <option ${ev.status==='Denied'?'selected':''}>Denied</option>
-                    </select>
-                </td>
-                <td class="px-4 py-3 text-right">
-                    <button onclick="openEventEditor('${ev.id}')" class="text-slate-400 hover:text-blue-500">✎</button>
-                    <button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-red-500 ml-2">✕</button>
-                </td>
-            `;
-            tr.innerHTML = html;
-            tbody.appendChild(tr);
-        });
+        let data = id ? eventsData.find(e => e.id === id) : { name:'', deadlines:{} };
+        tempFiles = JSON.parse(JSON.stringify(data.files || { general:[], marketing:[], amazon:[] }));
+        
+        document.getElementById('event-modal-content').innerHTML = `
+            <div id="form-tab-details" class="space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" value="${data.name||''}" class="w-full px-3 py-2 border rounded"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Date</label><input type="date" id="form-date" value="${data.date||''}" class="w-full px-3 py-2 border rounded"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Time</label><input id="form-time" value="${data.time||''}" class="w-full px-3 py-2 border rounded"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Location</label><input id="form-location" value="${data.location||''}" class="w-full px-3 py-2 border rounded"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Budget</label><input type="number" id="form-budget" value="${data.budget||''}" class="w-full px-3 py-2 border rounded"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500">Cart</label>
+                        <select id="form-cart" class="w-full px-2 py-2 border rounded bg-white">
+                            <option>Caddy</option>
+                            <option>Clubs Cart</option>
+                            <option>None</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500">Contact</label><input id="form-contact" value="${data.contact||''}" class="w-full px-2 py-2 border rounded"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Status</label><select id="form-status" class="w-full px-2 py-2 border rounded bg-white"><option>Submit</option><option>Pending</option><option>Approved</option></select></div>
+                </div>
+                <div class="border-t pt-4">
+                    <h3 class="text-sm font-bold text-slate-700 mb-3">Deadlines</h3>
+                    <div class="grid grid-cols-3 gap-3">
+                        ${MILESTONE_KEYS.map(k => {
+                            const m = data.deadlines?.[k] || {};
+                            return `<div class="bg-white border rounded p-2"><div class="flex justify-between mb-1"><label class="text-xs font-bold">${columnLabels[k]||k}</label><input type="checkbox" id="c-${k}" ${m.completed?'checked':''}></div><input type="date" id="d-${k}" value="${m.date||''}" class="w-full text-xs border rounded mb-1"><input id="a-${k}" value="${m.assignee||''}" placeholder="Name" class="w-full text-xs border rounded"></div>`
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+            <div id="form-tab-files" class="hidden space-y-4"></div>
+        `;
+        
+        if(data.cart) document.getElementById('form-cart').value = data.cart;
+        if(data.status) document.getElementById('form-status').value = data.status;
+        
+        window.switchTab('details');
+        renderFilesTab();
     }
 
-    // 11. Settings
+    window.openEventEditor = openEventEditor; // Explicit global attachment
+    
+    window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
+
+    window.saveEvent = function() {
+        const name = document.getElementById('form-name').value;
+        if(!name) return alert("Name required");
+        
+        const ev = {
+            id: editingEventId || 'ev_'+Date.now(),
+            name, 
+            date: document.getElementById('form-date').value,
+            time: document.getElementById('form-time').value,
+            location: document.getElementById('form-location').value,
+            budget: Number(document.getElementById('form-budget').value),
+            cart: document.getElementById('form-cart').value,
+            contact: document.getElementById('form-contact').value,
+            status: document.getElementById('form-status').value,
+            attendance: editingEventId ? (eventsData.find(e=>e.id===editingEventId)?.attendance || 0) : 0,
+            deadlines: {},
+            files: tempFiles
+        };
+        
+        MILESTONE_KEYS.forEach(k => {
+            ev.deadlines[k] = {
+                date: document.getElementById(`d-${k}`).value,
+                assignee: document.getElementById(`a-${k}`).value,
+                completed: document.getElementById(`c-${k}`).checked
+            };
+        });
+
+        if(editingEventId) {
+            const idx = eventsData.findIndex(e=>e.id===editingEventId);
+            if(idx !== -1) eventsData[idx] = ev;
+        } else {
+            eventsData.push(ev);
+        }
+        
+        saveLocal();
+        renderEvents();
+        renderBudgetView(); 
+        closeEventModal();
+    };
+
+    window.toggleDeadline = function(id, k) {
+        const ev = eventsData.find(e=>e.id===id);
+        if(ev) {
+            if(!ev.deadlines) ev.deadlines={};
+            if(!ev.deadlines[k]) ev.deadlines[k]={};
+            ev.deadlines[k].completed = !ev.deadlines[k].completed;
+            saveLocal();
+            renderEvents();
+        }
+    };
+    
+    window.updateStatus = function(id, val) {
+        const ev = eventsData.find(e=>e.id===id);
+        if(ev) { ev.status = val; saveLocal(); }
+    }
+
+    window.deleteEvent = function(id) {
+        if(confirm("Delete?")) {
+            eventsData = eventsData.filter(e=>e.id!==id);
+            saveLocal();
+            renderEvents();
+            renderBudgetView();
+        }
+    }
+
+    // 8. Settings & Init
     window.openSettings = function() {
         document.getElementById('settings-modal').classList.remove('hidden');
         document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `<div class="flex items-center gap-2 mb-2"><span class="w-24 text-xs font-bold">${k}</span><input id="set-${k}" value="${columnLabels[k]}" class="flex-1 border rounded px-2 py-1 text-sm"></div>`).join('');
-        
-        // Set current app name
         document.getElementById('setting-app-name').value = appName;
     };
     window.closeSettings = function() { document.getElementById('settings-modal').classList.add('hidden'); };
     window.saveSettings = function() {
         MILESTONE_KEYS.forEach(k => columnLabels[k] = document.getElementById(`set-${k}`).value);
-        appName = document.getElementById('setting-app-name').value; // Save App Name
+        appName = document.getElementById('setting-app-name').value; 
         saveLocal();
         renderTableHeader();
         renderEvents();
-        renderAppTitle(); // Update title immediately
+        renderAppTitle(); 
         closeSettings();
     };
 
-    // 12. FIX: Make switchTab global to resolve reference error in HTML handlers
     window.switchTab = function(tab) {
         const detailsTab = document.getElementById('form-tab-details');
         const filesTab = document.getElementById('form-tab-files');
@@ -1171,9 +1255,10 @@
             btnDetails.classList.add('border-transparent');
         }
     }
-
-    // Boot
+    
+    // Ensure load
     initApp();
+    console.log("App Loaded");
 
 </script>
 </body>
