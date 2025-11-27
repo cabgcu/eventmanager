@@ -234,10 +234,19 @@
                 events: eventsData
             };
 
+            // FIX: Added mode: 'no-cors'
+            // This prevents the browser from blocking the Google Script redirect.
+            // We won't receive a response (it will be opaque), but the server WILL execute the save.
             await fetch(CLOUD_URL, {
                 method: 'POST',
+                mode: 'no-cors', 
+                headers: {
+                    'Content-Type': 'text/plain'
+                },
                 body: JSON.stringify(payload)
             });
+            
+            console.log("Sent save request to cloud");
             
         } catch (e) {
             console.error("Sync Error", e);
