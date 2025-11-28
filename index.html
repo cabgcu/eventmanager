@@ -353,7 +353,7 @@
     // ==============================================================
     
     // ⚠️ UPDATED GOOGLE SCRIPT WEB APP URL
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwrMQiyuz3uGVb8ZF-9IIu937X4YRY4rkTlxeG2a7mpwkqLvqrCONUFFk9kz8OmK4yq/exec";
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycby57xJsvFhrkXw37XweRGJzBk5ScZM36KkDzrUus1IUJohOxefYTZ0-sOZUQVPCqaWR/exec";
 
     // Load State
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
@@ -406,7 +406,6 @@
 
     function formatDate(dateStr) {
         if (!dateStr) return '';
-        // Fix Timezone Issue: Split string directly to avoid UTC conversion
         const [y, m, d] = dateStr.split('-');
         return `${parseInt(m)}/${parseInt(d)}`;
     }
@@ -418,7 +417,6 @@
         const today = new Date();
         today.setHours(0,0,0,0);
         
-        // Strict parsing for comparison
         const [y, m, d] = dateStr.split('-');
         const due = new Date(y, m - 1, d); 
 
@@ -578,10 +576,11 @@
         // 4. Hide Admin/Save Settings
         document.getElementById('admin-archive-zone').classList.add('hidden');
         document.getElementById('settings-save-area').classList.add('hidden');
-        document.getElementById('live-settings-actions').classList.add('hidden');
+        // Safe check for troubleshooting buttons
+        const troubleshoot = document.querySelector('button[onclick="manualForceSync()"]')?.parentNode;
+        if(troubleshoot) troubleshoot.classList.add('hidden');
         
-        // 5. Disable Inputs Globally
-        // Note: We re-render views after setting isReadOnly=true to handle specific elements in render functions
+        // 5. Disable Inputs Globally - re-rendering views handles most of this via isReadOnly check
     }
 
     // ==============================================================
@@ -589,11 +588,18 @@
     // ==============================================================
     
     window.downloadPDF = function() {
+        // Notify user
+        const btn = document.querySelector('button[onclick="downloadPDF()"]');
+        const originalText = btn.innerText;
+        btn.innerText = "⏳";
+        btn.disabled = true;
+
+        // Create Clean Container
         const container = document.createElement('div');
         container.style.padding = '20px';
         container.style.fontFamily = 'sans-serif';
 
-        // SECTION 1: EVENTS
+        // --- SECTION 1: EVENTS ---
         const eventsHeader = document.createElement('h2');
         eventsHeader.innerText = `${appName} - Events Overview`;
         eventsHeader.style.textAlign = 'center';
@@ -601,83 +607,87 @@
         container.appendChild(eventsHeader);
 
         const eventsTable = document.getElementById('events-table-main').cloneNode(true);
+        // Clean table actions
         const rows = eventsTable.rows;
         for (let i = 0; i < rows.length; i++) {
             if (rows[i].cells.length > 0) rows[i].deleteCell(-1);
         }
         container.appendChild(eventsTable);
 
-        // SECTION 2: BUDGET
+        // --- SECTION 2: BUDGET ---
         const budgetContainer = document.createElement('div');
         budgetContainer.style.pageBreakBefore = 'always';
-        
-        const budgetHeader = document.createElement('h2');
-        budgetHeader.innerText = 'Financial Report';
-        budgetHeader.style.textAlign = 'center';
-        budgetHeader.style.marginBottom = '20px';
-        budgetContainer.appendChild(budgetHeader);
+        budgetContainer.innerHTML = `<h2 style="text-align:center;margin-bottom:20px;">Financial Report</h2>`;
 
         const originalBudget = document.getElementById('view-budget');
         const budgetClone = originalBudget.cloneNode(true);
         budgetClone.classList.remove('hidden');
         budgetClone.style.display = 'block';
         
-        // Ensure table is visible for PDF even if collapsed in UI
+        // Ensure breakdown is visible
         const tblContent = budgetClone.querySelector('#budget-breakdown-content');
         if(tblContent) tblContent.classList.remove('hidden');
 
+        // Convert inputs to text
         budgetClone.querySelectorAll('input').forEach(input => {
             const span = document.createElement('span');
-            span.innerText = input.value;
-            if(input.type === 'number' && input.value) {
-                span.innerText = '$' + Number(input.value).toLocaleString();
-            }
+            span.innerText = input.value ? (input.type === 'number' ? '$' + Number(input.value).toLocaleString() : input.value) : '-';
             input.parentNode.replaceChild(span, input);
         });
 
-        const addMonthBtn = budgetClone.querySelector('button[onclick="addBudgetMonth()"]')?.parentNode;
-        if(addMonthBtn) addMonthBtn.remove();
-
-        const headers = budgetClone.querySelectorAll('h3');
-        headers.forEach(h3 => {
-            if(h3.innerText.includes('Add Expense')) {
-                h3.closest('.bg-white').remove();
-            }
-        });
-        
+        // Remove interactive elements
         budgetClone.querySelectorAll('button').forEach(b => b.remove());
         budgetClone.querySelectorAll('.action-col').forEach(c => c.remove());
+        budgetClone.querySelectorAll('h3').forEach(h3 => {
+            if(h3.innerText.includes('Add Expense')) h3.closest('.bg-white').remove();
+        });
         
         budgetContainer.appendChild(budgetClone);
         container.appendChild(budgetContainer);
 
-        // SECTION 3: PHOTOS
+        // --- SECTION 3: PHOTOS (Safe Mode) ---
         const photoContainer = document.createElement('div');
         photoContainer.style.pageBreakBefore = 'always';
-        
-        const photoHeader = document.createElement('h2');
-        photoHeader.innerText = 'Event Photos & Links';
-        photoHeader.style.textAlign = 'center';
-        photoHeader.style.marginBottom = '20px';
-        photoContainer.appendChild(photoHeader);
+        photoContainer.innerHTML = `<h2 style="text-align:center;margin-bottom:20px;">Event Photos</h2>`;
 
         const photosGrid = document.getElementById('photos-grid').cloneNode(true);
+        
+        // Replace images with text to prevent freezing on CORS
+        photosGrid.querySelectorAll('.aspect-video').forEach(div => {
+            const img = div.querySelector('img');
+            const src = img ? img.src : '';
+            div.innerHTML = `<div style="padding:20px;background:#f1f5f9;text-align:center;border:1px solid #cbd5e1;border-radius:8px;">
+                                <p style="margin:0;font-weight:bold;color:#475569;">Image Available Online</p>
+                                ${src ? `<a href="${src}" target="_blank" style="font-size:10px;color:#2563eb;">View Image Source</a>` : ''}
+                             </div>`;
+            div.style.aspectRatio = 'auto';
+        });
+        
+        // Clean inputs
         photosGrid.querySelectorAll('input').forEach(el => el.remove());
         photosGrid.querySelectorAll('label').forEach(el => el.remove());
-        photosGrid.querySelectorAll('.mt-auto').forEach(el => el.remove()); 
         
         photoContainer.appendChild(photosGrid);
         container.appendChild(photoContainer);
 
+        // Config for PDF
         let opt = {
             margin:       0.5,
-            filename:     `${appName}_Full_Report.pdf`,
+            filename:     `${appName}_Report.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true }, 
+            html2canvas:  { scale: 2, useCORS: false }, // Set FALSE to prevent network freeze
             jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
         };
 
-        html2pdf().set(opt).from(container).save();
+        html2pdf().set(opt).from(container).save().then(() => {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }).catch(err => {
+            console.error(err);
+            alert("PDF Error: " + err.message);
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
     };
 
     // ==============================================================
@@ -954,6 +964,7 @@
                 const status = getDeadlineStatus(m.date, m.completed);
                 const colorClass = getStatusClasses(status);
                 
+                // FIX: Always show date if available, even if completed (green class indicates done)
                 let displayDate = '-';
                 if (m.date) {
                     const [y, mo, d] = m.date.split('-');
@@ -1091,7 +1102,7 @@
     function updateSyncUI() {
         const dot = document.getElementById('sync-dot');
         const text = document.getElementById('sync-text');
-        if (!dot || !text) return; // Safety check
+        if (!dot || !text) return; 
         if (isReadOnly) return; // Handled by updateReadOnlyUI
 
         if (isSyncing) {
