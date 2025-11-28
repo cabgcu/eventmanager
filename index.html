@@ -52,7 +52,7 @@
     <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
         <div class="flex flex-col items-center lg:items-start">
-            <!-- APP TITLE -->
+            <!-- APP TITLE (Now Editable via ID) -->
             <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
@@ -353,7 +353,7 @@
     // ==============================================================
     
     // ⚠️ UPDATED GOOGLE SCRIPT WEB APP URL
-    const CLOUD_URL = "https://script.google.com/macros/s/AKfycby57xJsvFhrkXw37XweRGJzBk5ScZM36KkDzrUus1IUJohOxefYTZ0-sOZUQVPCqaWR/exec";
+    const CLOUD_URL = "https://script.google.com/macros/s/AKfycbwrMQiyuz3uGVb8ZF-9IIu937X4YRY4rkTlxeG2a7mpwkqLvqrCONUFFk9kz8OmK4yq/exec";
 
     // Load State
     let eventsData = JSON.parse(localStorage.getItem('arts_events_data') || '[]');
@@ -396,8 +396,6 @@
     let editingEventId = null; 
     let tempFiles = {}; 
     let currentView = 'events';
-    
-    // READ ONLY FLAG
     let isReadOnly = false;
 
     // ==============================================================
@@ -413,16 +411,12 @@
     function getDeadlineStatus(dateStr, isCompleted) {
         if (!dateStr) return 'none';
         if (isCompleted) return 'completed';
-        
         const today = new Date();
         today.setHours(0,0,0,0);
-        
         const [y, m, d] = dateStr.split('-');
         const due = new Date(y, m - 1, d); 
-
         const diffTime = due - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
         if (diffDays < 0) return 'overdue';
         if (diffDays <= 7) return 'warning';
         return 'safe';
@@ -652,15 +646,22 @@
 
         const photosGrid = document.getElementById('photos-grid').cloneNode(true);
         
-        // Replace images with text to prevent freezing on CORS
+        // Replace images with placeholders (SVGs) to prevent freezing on CORS errors
+        // Using data URI SVGs is safe and instant
         photosGrid.querySelectorAll('.aspect-video').forEach(div => {
             const img = div.querySelector('img');
             const src = img ? img.src : '';
-            div.innerHTML = `<div style="padding:20px;background:#f1f5f9;text-align:center;border:1px solid #cbd5e1;border-radius:8px;">
-                                <p style="margin:0;font-weight:bold;color:#475569;">Image Available Online</p>
-                                ${src ? `<a href="${src}" target="_blank" style="font-size:10px;color:#2563eb;">View Image Source</a>` : ''}
-                             </div>`;
+            
+            // Use a simple SVG placeholder for PDF to ensure it renders instantly
+            // Browsers often block cross-origin images in canvas export
+            div.innerHTML = `
+                <div style="padding:20px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; text-align:center;">
+                     <p style="margin:0; font-weight:bold; color:#475569; font-size:12px;">Image Link Available</p>
+                     ${src ? `<a href="${src}" target="_blank" style="font-size:10px; color:#2563eb; text-decoration:underline; word-break:break-all;">${src.substring(0,30)}...</a>` : ''}
+                </div>
+            `;
             div.style.aspectRatio = 'auto';
+            div.style.marginBottom = '10px';
         });
         
         // Clean inputs
@@ -746,11 +747,13 @@
         sorted.forEach(ev => {
             const card = document.createElement('div');
             card.className = "bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col";
-            const bgImage = ev.coverImage || 'https://via.placeholder.com/400x225/f1f5f9/cbd5e1?text=No+Cover+Image';
+            
+            // Use a default placeholder if empty, or check validity
+            const bgImage = ev.coverImage || 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23f1f5f9%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3Ctext%20fill%3D%22%23cbd5e1%22%20font-family%3D%22sans-serif%22%20font-size%3D%2220%22%20dy%3D%2210.5%22%20font-weight%3D%22bold%22%20x%3D%2250%25%22%20y%3D%2250%25%22%20text-anchor%3D%22middle%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';
             
             card.innerHTML = `
                 <div class="relative aspect-video bg-slate-100 overflow-hidden group">
-                    <img src="${bgImage}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" onerror="this.src='https://via.placeholder.com/400x225/f1f5f9/cbd5e1?text=Error'">
+                    <img src="${bgImage}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23f1f5f9%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3Ctext%20fill%3D%22%23cbd5e1%22%20font-family%3D%22sans-serif%22%20font-size%3D%2220%22%20dy%3D%2210.5%22%20font-weight%3D%22bold%22%20x%3D%2250%25%22%20y%3D%2250%25%22%20text-anchor%3D%22middle%22%3EError%3C%2Ftext%3E%3C%2Fsvg%3E'">
                     ${ev.photosLink ? `
                         <a href="${ev.photosLink}" target="_blank" class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                             <span class="bg-white text-slate-900 px-4 py-2 rounded-full font-bold text-sm transform scale-95 group-hover:scale-100 transition">📂 Open Drive Folder</span>
@@ -964,7 +967,8 @@
                 const status = getDeadlineStatus(m.date, m.completed);
                 const colorClass = getStatusClasses(status);
                 
-                // FIX: Always show date if available, even if completed (green class indicates done)
+                // FIX: Always show date if available.
+                // Split and reconstruct to avoid off-by-one error in display
                 let displayDate = '-';
                 if (m.date) {
                     const [y, mo, d] = m.date.split('-');
@@ -1011,7 +1015,7 @@
     }
 
     // ==============================================================
-    // 7. DATA & SYNC LOGIC
+    // 6. DATA & SYNC LOGIC
     // ==============================================================
 
     window.updateAllocation = function(index, value) {
@@ -1234,7 +1238,7 @@
     }
 
     // ==============================================================
-    // 8. MODAL LOGIC & UPLOAD
+    // 7. MODAL LOGIC & UPLOAD
     // ==============================================================
 
     async function uploadToDrive(file, uiCallback) {
