@@ -52,7 +52,7 @@
     <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
         <div class="flex flex-col items-center lg:items-start">
-            <!-- APP TITLE (Now Editable via ID) -->
+            <!-- APP TITLE -->
             <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
@@ -494,205 +494,131 @@
     }
 
     // ==============================================================
-    // 4. ARCHIVE & READ-ONLY LOGIC
-    // ==============================================================
-
-    window.fetchArchiveList = async function() {
-        const listDiv = document.getElementById('archive-list');
-        listDiv.innerHTML = '<div class="text-xs text-slate-400 p-2">Loading archives...</div>';
-        try {
-            const res = await fetch(`${CLOUD_URL}?action=listArchives`);
-            const json = await res.json();
-            
-            if (json.archives && json.archives.length > 0) {
-                listDiv.innerHTML = json.archives.map(a => 
-                    `<button onclick="loadArchive('${a}')" class="block w-full text-left text-xs font-medium py-2 px-2 hover:bg-slate-100 rounded text-purple-600 transition border-b border-slate-50 last:border-0">📂 ${a}</button>`
-                ).join('');
-            } else {
-                listDiv.innerHTML = '<div class="text-xs text-slate-400 p-2">No archives found.</div>';
-            }
-        } catch(e) {
-            console.error(e);
-            listDiv.innerHTML = '<div class="text-xs text-red-400 p-2">Error fetching list.</div>';
-        }
-    };
-    
-    window.loadArchive = async function(name) {
-        if(!confirm(`Load archive "${name}"? The app will be in READ-ONLY mode.`)) return;
-        
-        document.getElementById('sync-text').innerText = "Loading Archive...";
-        
-        try {
-            const res = await fetch(`${CLOUD_URL}?archive=${name}`); 
-            const data = await res.json();
-            
-            if (data.events) {
-                // Temporarily overwrite local variables (NOT localStorage to protect live data)
-                eventsData = data.events;
-                expensesData = data.expenses || [];
-                budgetData = data.budgets || [];
-                if(data.settings) appName = data.settings.appName || appName;
-                
-                isReadOnly = true;
-                
-                // Update UI
-                renderAppTitle();
-                renderEvents();
-                renderBudgetView();
-                renderPhotosView();
-                updateReadOnlyUI(name);
-                closeSettings();
-            }
-        } catch(e) {
-            alert("Failed to load archive: " + e);
-        }
-    };
-
-    function updateReadOnlyUI(archiveName) {
-        // 1. Update Top Bar Status
-        const statusDot = document.getElementById('sync-dot');
-        const statusText = document.getElementById('sync-text');
-        statusDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
-        statusText.innerHTML = `<span class="text-red-600 font-bold uppercase">ARCHIVED VIEW: ${archiveName}</span>`;
-        
-        // 2. Replace "New Event" button with "Exit Archive"
-        const actionArea = document.getElementById('main-action-area');
-        actionArea.innerHTML = `
-            <button onclick="location.reload()" class="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-medium shadow-md flex items-center gap-2">
-                <span>↩</span> Exit Archive View
-            </button>
-        `;
-        
-        // 3. Hide Inputs in Budget View
-        document.getElementById('expense-form-card').classList.add('hidden');
-        document.getElementById('add-month-container').classList.add('hidden');
-        
-        // 4. Hide Admin/Save Settings
-        document.getElementById('admin-archive-zone').classList.add('hidden');
-        document.getElementById('settings-save-area').classList.add('hidden');
-        // Safe check for troubleshooting buttons
-        const troubleshoot = document.querySelector('button[onclick="manualForceSync()"]')?.parentNode;
-        if(troubleshoot) troubleshoot.classList.add('hidden');
-        
-        // 5. Disable Inputs Globally - re-rendering views handles most of this via isReadOnly check
-    }
-
-    // ==============================================================
-    // 5. PDF GENERATION
+    // 4. PDF GENERATION (UPDATED & ROBUST)
     // ==============================================================
     
     window.downloadPDF = function() {
-        // Notify user
         const btn = document.querySelector('button[onclick="downloadPDF()"]');
         const originalText = btn.innerText;
         btn.innerText = "⏳";
         btn.disabled = true;
 
-        // Create Clean Container
-        const container = document.createElement('div');
-        container.style.padding = '20px';
-        container.style.fontFamily = 'sans-serif';
+        setTimeout(() => {
+            const container = document.createElement('div');
+            container.style.padding = '20px';
+            container.style.fontFamily = 'sans-serif';
+            container.style.background = 'white';
+            container.style.width = '1100px'; // Fixed width for consistency
 
-        // --- SECTION 1: EVENTS ---
-        const eventsHeader = document.createElement('h2');
-        eventsHeader.innerText = `${appName} - Events Overview`;
-        eventsHeader.style.textAlign = 'center';
-        eventsHeader.style.marginBottom = '10px';
-        container.appendChild(eventsHeader);
+            // HEADER
+            const title = document.createElement('h1');
+            title.innerText = appName + " Report";
+            title.style.textAlign = 'center';
+            title.style.marginBottom = '20px';
+            container.appendChild(title);
 
-        const eventsTable = document.getElementById('events-table-main').cloneNode(true);
-        // Clean table actions
-        const rows = eventsTable.rows;
-        for (let i = 0; i < rows.length; i++) {
-            if (rows[i].cells.length > 0) rows[i].deleteCell(-1);
-        }
-        container.appendChild(eventsTable);
+            // 1. EVENTS SECTION
+            const h2Events = document.createElement('h2');
+            h2Events.innerText = "Events Overview";
+            h2Events.style.borderBottom = '2px solid #ddd';
+            h2Events.style.paddingBottom = '5px';
+            h2Events.style.marginTop = '20px';
+            container.appendChild(h2Events);
 
-        // --- SECTION 2: BUDGET ---
-        const budgetContainer = document.createElement('div');
-        budgetContainer.style.pageBreakBefore = 'always';
-        budgetContainer.innerHTML = `<h2 style="text-align:center;margin-bottom:20px;">Financial Report</h2>`;
+            const eventsClone = document.getElementById('events-table-main').cloneNode(true);
+            const rows = eventsClone.rows;
+            for(let i=0; i<rows.length; i++) {
+                // Remove action columns (last cell)
+                if(rows[i].cells.length > 0) rows[i].deleteCell(-1);
+                // Replace complex buttons with text
+                const dateCell = rows[i].cells[5]; // Deadline cells start index
+                // We just let text render as is, but remove button styles
+            }
+            container.appendChild(eventsClone);
 
-        const originalBudget = document.getElementById('view-budget');
-        const budgetClone = originalBudget.cloneNode(true);
-        budgetClone.classList.remove('hidden');
-        budgetClone.style.display = 'block';
-        
-        // Ensure breakdown is visible
-        const tblContent = budgetClone.querySelector('#budget-breakdown-content');
-        if(tblContent) tblContent.classList.remove('hidden');
+            // 2. BUDGET SECTION
+            const h2Budget = document.createElement('h2');
+            h2Budget.innerText = "Financial Report";
+            h2Budget.style.borderBottom = '2px solid #ddd';
+            h2Budget.style.paddingBottom = '5px';
+            h2Budget.style.marginTop = '30px';
+            h2Budget.style.pageBreakBefore = 'always';
+            container.appendChild(h2Budget);
 
-        // Convert inputs to text
-        budgetClone.querySelectorAll('input').forEach(input => {
-            const span = document.createElement('span');
-            span.innerText = input.value ? (input.type === 'number' ? '$' + Number(input.value).toLocaleString() : input.value) : '-';
-            input.parentNode.replaceChild(span, input);
-        });
-
-        // Remove interactive elements
-        budgetClone.querySelectorAll('button').forEach(b => b.remove());
-        budgetClone.querySelectorAll('.action-col').forEach(c => c.remove());
-        budgetClone.querySelectorAll('h3').forEach(h3 => {
-            if(h3.innerText.includes('Add Expense')) h3.closest('.bg-white').remove();
-        });
-        
-        budgetContainer.appendChild(budgetClone);
-        container.appendChild(budgetContainer);
-
-        // --- SECTION 3: PHOTOS (Safe Mode) ---
-        const photoContainer = document.createElement('div');
-        photoContainer.style.pageBreakBefore = 'always';
-        photoContainer.innerHTML = `<h2 style="text-align:center;margin-bottom:20px;">Event Photos</h2>`;
-
-        const photosGrid = document.getElementById('photos-grid').cloneNode(true);
-        
-        // Replace images with placeholders (SVGs) to prevent freezing on CORS errors
-        // Using data URI SVGs is safe and instant
-        photosGrid.querySelectorAll('.aspect-video').forEach(div => {
-            const img = div.querySelector('img');
-            const src = img ? img.src : '';
+            const budgetCard = document.getElementById('budget-overview-card').cloneNode(true);
+            // Force visible
+            const bdContent = budgetCard.querySelector('#budget-breakdown-content');
+            if(bdContent) bdContent.classList.remove('hidden');
             
-            // Use a simple SVG placeholder for PDF to ensure it renders instantly
-            // Browsers often block cross-origin images in canvas export
-            div.innerHTML = `
-                <div style="padding:20px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; text-align:center;">
-                     <p style="margin:0; font-weight:bold; color:#475569; font-size:12px;">Image Link Available</p>
-                     ${src ? `<a href="${src}" target="_blank" style="font-size:10px; color:#2563eb; text-decoration:underline; word-break:break-all;">${src.substring(0,30)}...</a>` : ''}
-                </div>
-            `;
-            div.style.aspectRatio = 'auto';
-            div.style.marginBottom = '10px';
-        });
-        
-        // Clean inputs
-        photosGrid.querySelectorAll('input').forEach(el => el.remove());
-        photosGrid.querySelectorAll('label').forEach(el => el.remove());
-        
-        photoContainer.appendChild(photosGrid);
-        container.appendChild(photoContainer);
+            // Clean Inputs
+            budgetCard.querySelectorAll('input').forEach(inp => {
+                const span = document.createElement('span');
+                span.innerText = inp.value ? '$' + Number(inp.value).toLocaleString() : '$0';
+                inp.parentNode.replaceChild(span, inp);
+            });
+            // Remove buttons
+            budgetCard.querySelectorAll('button, .action-col').forEach(el => el.remove());
+            container.appendChild(budgetCard);
 
-        // Config for PDF
-        let opt = {
-            margin:       0.5,
-            filename:     `${appName}_Report.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: false }, // Set FALSE to prevent network freeze
-            jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
-        };
+            // Add Financial Table
+            const finTable = document.getElementById('event-financials-body').parentNode.parentNode.cloneNode(true);
+            finTable.style.marginTop = '20px';
+            finTable.querySelectorAll('input').forEach(inp => {
+                const span = document.createElement('span');
+                span.innerText = inp.value || '0';
+                inp.parentNode.replaceChild(span, inp);
+            });
+            container.appendChild(finTable);
 
-        html2pdf().set(opt).from(container).save().then(() => {
-            btn.innerText = originalText;
-            btn.disabled = false;
-        }).catch(err => {
-            console.error(err);
-            alert("PDF Error: " + err.message);
-            btn.innerText = originalText;
-            btn.disabled = false;
-        });
+
+            // 3. PHOTOS LIST
+            const h2Photos = document.createElement('h2');
+            h2Photos.innerText = "Event Links";
+            h2Photos.style.borderBottom = '2px solid #ddd';
+            h2Photos.style.paddingBottom = '5px';
+            h2Photos.style.marginTop = '30px';
+            h2Photos.style.pageBreakBefore = 'always';
+            container.appendChild(h2Photos);
+
+            const photoList = document.createElement('ul');
+            photoList.style.listStyle = 'none';
+            photoList.style.padding = '0';
+            
+            eventsData.forEach(ev => {
+                const li = document.createElement('li');
+                li.style.padding = '10px';
+                li.style.borderBottom = '1px solid #eee';
+                li.innerHTML = `
+                    <strong>${ev.name}</strong> (${formatDate(ev.date)})<br>
+                    ${ev.photosLink ? `<a href="${ev.photosLink}" style="color:blue;">View Photos on Drive</a>` : '<span style="color:#999;">No Drive Link</span>'}
+                `;
+                photoList.appendChild(li);
+            });
+            container.appendChild(photoList);
+
+            // GENERATE
+            let opt = {
+                margin:       0.5,
+                filename:     `${appName}_Report.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 1.5, useCORS: false, logging: false },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(container).save().then(() => {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
+                alert("PDF Error: " + err.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
+        }, 200);
     };
 
     // ==============================================================
-    // 6. RENDER FUNCTIONS (With Read-Only Checks)
+    // 5. RENDER FUNCTIONS
     // ==============================================================
 
     function renderFileCategories() {
@@ -748,7 +674,7 @@
             const card = document.createElement('div');
             card.className = "bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col";
             
-            // Use a default placeholder if empty, or check validity
+            // Safe SVG Placeholder
             const bgImage = ev.coverImage || 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23f1f5f9%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3Ctext%20fill%3D%22%23cbd5e1%22%20font-family%3D%22sans-serif%22%20font-size%3D%2220%22%20dy%3D%2210.5%22%20font-weight%3D%22bold%22%20x%3D%2250%25%22%20y%3D%2250%25%22%20text-anchor%3D%22middle%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';
             
             card.innerHTML = `
@@ -967,8 +893,7 @@
                 const status = getDeadlineStatus(m.date, m.completed);
                 const colorClass = getStatusClasses(status);
                 
-                // FIX: Always show date if available.
-                // Split and reconstruct to avoid off-by-one error in display
+                // FIX: Always show date if available, even if completed (green class indicates done)
                 let displayDate = '-';
                 if (m.date) {
                     const [y, mo, d] = m.date.split('-');
