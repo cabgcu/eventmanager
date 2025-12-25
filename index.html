@@ -38,10 +38,20 @@
 
         /* Read Only Styles */
         .read-only-input { background-color: #f8fafc; color: #64748b; cursor: not-allowed; }
+
+        /* Mobile adjustments for inputs to prevent zoom */
+        input, select, textarea {
+            font-size: 16px; /* Base size for mobile */
+        }
+        @media (min-width: 768px) {
+            input, select, textarea {
+                font-size: 0.875rem; /* text-sm for desktop */
+            }
+        }
     </style>
 </head>
 
-<body class="font-sans text-slate-800 p-4 pb-20">
+<body class="font-sans text-slate-800 p-2 md:p-4 pb-20">
 
 <!-- ====================================================== -->
 <!-- APP CONTAINER -->
@@ -49,11 +59,11 @@
 <div id="app-container" class="max-w-[1400px] mx-auto">
 
     <!-- TOP BAR -->
-    <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
+    <div class="bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-slate-200 mb-4 md:mb-6 flex flex-col lg:flex-row justify-between gap-4 items-center">
         
-        <div class="flex flex-col items-center lg:items-start">
+        <div class="flex flex-col items-center lg:items-start w-full lg:w-auto">
             <!-- APP TITLE -->
-            <h1 id="app-title-display" class="text-2xl font-bold flex items-center gap-2 text-slate-900">
+            <h1 id="app-title-display" class="text-xl md:text-2xl font-bold flex items-center gap-2 text-slate-900">
                 🎨 Arts Events Manager
             </h1>
             
@@ -65,35 +75,35 @@
         </div>
 
         <!-- Navigation & Actions -->
-        <div class="flex flex-wrap justify-center gap-3 items-center">
+        <div class="flex flex-col md:flex-row flex-wrap justify-center gap-3 items-center w-full lg:w-auto">
             
             <!-- View Switcher -->
-            <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200 mr-2">
-                <button onclick="switchView('events')" id="nav-events" class="nav-tab active px-4 py-2 rounded-md text-sm font-bold text-slate-600 transition">Events</button>
-                <button onclick="switchView('budget')" id="nav-budget" class="nav-tab px-4 py-2 rounded-md text-sm font-bold text-slate-600 transition">Budget</button>
-                <button onclick="switchView('photos')" id="nav-photos" class="nav-tab px-4 py-2 rounded-md text-sm font-bold text-slate-600 transition">Photos</button>
+            <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200 w-full md:w-auto">
+                <button onclick="switchView('events')" id="nav-events" class="nav-tab active flex-1 md:flex-none px-4 py-2 rounded-md text-sm font-bold text-slate-600 transition">Events</button>
+                <button onclick="switchView('budget')" id="nav-budget" class="nav-tab flex-1 md:flex-none px-4 py-2 rounded-md text-sm font-bold text-slate-600 transition">Budget</button>
+                <button onclick="switchView('photos')" id="nav-photos" class="nav-tab flex-1 md:flex-none px-4 py-2 rounded-md text-sm font-bold text-slate-600 transition">Photos</button>
             </div>
 
-            <!-- Total Budget Display -->
-            <div class="bg-green-50 px-4 py-2 rounded-lg border border-green-100 min-w-[100px] text-center lg:text-left">
-                <p class="text-[10px] text-green-600 font-bold uppercase tracking-wider">Yearly Budget</p>
-                <p id="total-budget-display" class="text-lg font-bold text-green-700">$0</p>
-            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto justify-center">
+                <!-- Total Budget Display -->
+                <div class="bg-green-50 px-4 py-2 rounded-lg border border-green-100 min-w-[100px] text-center lg:text-left flex-1 md:flex-none">
+                    <p class="text-[10px] text-green-600 font-bold uppercase tracking-wider">Yearly Budget</p>
+                    <p id="total-budget-display" class="text-lg font-bold text-green-700">$0</p>
+                </div>
 
-            <!-- Settings -->
-            <button onclick="openSettings()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition bg-white border border-slate-200" title="Settings">
-                ⚙️
-            </button>
+                <!-- Settings -->
+                <button onclick="openSettings()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition bg-white border border-slate-200" title="Settings">
+                    ⚙️
+                </button>
 
-            <!-- Download PDF -->
-            <button onclick="downloadPDF()" class="p-2.5 rounded-lg text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition bg-white border border-slate-200" title="Download Full Report">
-                📥
-            </button>
+                <!-- Download PDF -->
+                <button onclick="downloadPDF()" class="p-2.5 rounded-lg text-slate-500 hover:text-purple-700 hover:bg-purple-50 transition bg-white border border-slate-200" title="Download Full Report">
+                    📥
+                </button>
 
-            <!-- Add Event / Exit Archive -->
-            <div id="main-action-area">
-                <button onclick="openEventEditor()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-md transition transform active:scale-95 flex items-center gap-2">
-                    <span>+</span> New Event
+                <!-- Add Event -->
+                <button onclick="openEventEditor()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg font-medium shadow-md transition transform active:scale-95 flex items-center gap-2 whitespace-nowrap">
+                    <span>+</span> <span class="hidden md:inline">New Event</span>
                 </button>
             </div>
         </div>
@@ -150,7 +160,7 @@
                                 <th class="px-4 py-2 w-[50px] action-col"></th>
                             </tr>
                         </thead>
-                        <tbody id="budget-months-body" class="divide-y divide-slate-50">
+                        <tbody id="budget-months-body" class="divide-y divide-slate-5">
                             <!-- Monthly rows injected here -->
                         </tbody>
                     </table>
@@ -174,28 +184,28 @@
                 <div class="space-y-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Expense Name</label>
-                        <input id="exp-name" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Pizza for Cast">
+                        <input id="exp-name" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="e.g. Pizza for Cast">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cost ($)</label>
-                            <input id="exp-cost" type="number" step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                            <input id="exp-cost" type="number" step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Date</label>
-                            <input id="exp-date" type="date" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                            <input id="exp-date" type="date" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Budget Month</label>
-                            <select id="exp-month" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                            <select id="exp-month" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
                                 <!-- Months injected here -->
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Category</label>
-                            <select id="exp-category" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                            <select id="exp-category" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
                                 <option value="General">General</option>
                                 <option value="Food">Food</option>
                                 <option value="Transport">Transport</option>
@@ -205,12 +215,12 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Link to Event</label>
-                        <select id="exp-event" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                        <select id="exp-event" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">
                             <option value="">-- General Expense --</option>
                             <!-- Events injected here -->
                         </select>
                     </div>
-                    <button onclick="addExpense()" class="w-full mt-2 bg-slate-800 text-white py-2.5 rounded-lg font-medium hover:bg-slate-900 transition">
+                    <button onclick="addExpense()" class="w-full mt-2 bg-slate-800 text-white py-3 md:py-2.5 rounded-lg font-medium hover:bg-slate-900 transition">
                         Add Expense
                     </button>
                 </div>
@@ -243,7 +253,7 @@
                             <th class="px-4 py-2">Cost / Student</th>
                         </tr>
                     </thead>
-                    <tbody id="event-financials-body" class="divide-y divide-slate-50">
+                    <tbody id="event-financials-body" class="divide-y divide-slate-5">
                         <!-- Rows injected via JS -->
                     </tbody>
                 </table>
@@ -267,16 +277,16 @@
 <!-- SETTINGS MODAL -->
 <!-- ====================================================== -->
 <div id="settings-modal" class="hidden fixed inset-0 modal-bg flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0">
             <h2 class="text-lg font-bold text-slate-800">⚙️ Settings</h2>
-            <button class="text-slate-400 hover:text-slate-600 font-bold px-2" onclick="closeSettings()">✕</button>
+            <button class="text-slate-400 hover:text-slate-600 font-bold px-2 py-2" onclick="closeSettings()">✕</button>
         </div>
-        <div class="p-6 space-y-6">
+        <div class="p-6 space-y-6 grow overflow-y-auto">
             <!-- App Name Config -->
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Application Name</label>
-                <input id="setting-app-name" class="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Arts Events Manager">
+                <input id="setting-app-name" class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-200 outline-none" placeholder="Arts Events Manager">
             </div>
 
             <div>
@@ -286,11 +296,11 @@
 
             <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Troubleshooting</h3>
-                <button onclick="manualForceSync()" class="w-full bg-white border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex justify-center items-center gap-2">
+                <button onclick="manualForceSync()" class="w-full bg-white border border-slate-300 text-slate-700 py-3 md:py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex justify-center items-center gap-2">
                     🔄 Force Cloud Sync Now
                 </button>
                 
-                <button onclick="resetBudgetDefaults()" class="mt-2 w-full bg-white border border-red-200 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex justify-center items-center gap-2">
+                <button onclick="resetBudgetDefaults()" class="mt-2 w-full bg-white border border-red-200 text-red-600 py-3 md:py-2 rounded-lg text-sm font-medium hover:bg-red-50 flex justify-center items-center gap-2">
                     ⚠️ Reset Budget Months
                 </button>
             </div>
@@ -298,19 +308,19 @@
             <!-- Archive Zone -->
             <div class="bg-red-50 p-4 rounded-lg border border-red-100" id="admin-archive-zone">
                 <h3 class="text-xs font-bold text-red-600 uppercase mb-2">Admin Actions</h3>
-                <button onclick="archiveYear()" class="w-full bg-white border border-red-300 text-red-700 py-2 rounded-lg text-sm font-bold hover:bg-red-50 flex justify-center items-center gap-2 shadow-sm">
+                <button onclick="archiveYear()" class="w-full bg-white border border-red-300 text-red-700 py-3 md:py-2 rounded-lg text-sm font-bold hover:bg-red-50 flex justify-center items-center gap-2 shadow-sm">
                     📦 Archive & Start New Year
                 </button>
                 <p class="text-[10px] text-red-400 mt-2">
                     Moves current data to archived sheets (e.g. "Events_2024") and resets the app to blank.
                 </p>
             </div>
-            
-            <div class="pt-4 border-t border-slate-100" id="settings-save-area">
-                <button onclick="saveSettings()" class="w-full bg-slate-900 text-white py-3 rounded-xl hover:bg-slate-800 font-medium">
-                    Save Changes
-                </button>
-            </div>
+        </div>
+        
+        <div class="p-4 border-t border-slate-100 shrink-0" id="settings-save-area">
+            <button onclick="saveSettings()" class="w-full bg-slate-900 text-white py-3 rounded-xl hover:bg-slate-800 font-medium">
+                Save Changes
+            </button>
         </div>
     </div>
 </div>
@@ -318,23 +328,23 @@
 <!-- ====================================================== -->
 <!-- EVENT MODAL -->
 <!-- ====================================================== -->
-<div id="event-modal" class="hidden fixed inset-0 modal-bg flex items-center justify-center z-50 p-4">
+<div id="event-modal" class="hidden fixed inset-0 modal-bg flex items-center justify-center z-50 p-2 md:p-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         
         <!-- Modal Header -->
-        <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start shrink-0">
+        <div class="p-4 md:p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start shrink-0">
             <div>
-                <h2 id="event-modal-title" class="text-xl font-bold text-slate-800">Event Details</h2>
+                <h2 id="event-modal-title" class="text-lg md:text-xl font-bold text-slate-800">Event Details</h2>
                 <div class="flex gap-4 mt-3">
                     <button id="tab-details" onclick="switchTab('details')" class="text-sm font-medium pb-1 border-b-2 border-purple-600 text-purple-600 transition">Details</button>
                     <button id="tab-files" onclick="switchTab('files')" class="text-sm font-medium pb-1 text-slate-500 hover:text-slate-700 border-b-2 border-transparent transition">Notes & Files</button>
                 </div>
             </div>
-            <button onclick="closeEventModal()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+            <button onclick="closeEventModal()" class="text-slate-400 hover:text-slate-600 p-2 text-xl font-bold leading-none">✕</button>
         </div>
 
         <!-- Modal Body -->
-        <div id="event-modal-content" class="p-6 overflow-y-auto grow">
+        <div id="event-modal-content" class="p-4 md:p-6 overflow-y-auto grow">
             <!-- Form content injected here -->
         </div>
 
@@ -695,14 +705,14 @@
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 uppercase">Cover Image URL</label>
                             <input type="text" value="${ev.coverImage || ''}" 
-                                ${isReadOnly ? 'disabled class="read-only-input w-full px-2 py-1 text-xs border border-slate-200 rounded"' : `onchange="updateEventPhoto('${ev.id}', 'coverImage', this.value)" class="w-full px-2 py-1 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"`}
+                                ${isReadOnly ? 'disabled class="read-only-input w-full px-2 py-1 border border-slate-200 rounded"' : `onchange="updateEventPhoto('${ev.id}', 'coverImage', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"`}
                                 placeholder="Paste image link...">
                         </div>
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 uppercase">Google Drive Link</label>
                             <div class="flex gap-1">
                                 <input type="text" value="${ev.photosLink || ''}" 
-                                    ${isReadOnly ? 'disabled class="read-only-input flex-1 px-2 py-1 text-xs border border-slate-200 rounded"' : `onchange="updateEventPhoto('${ev.id}', 'photosLink', this.value)" class="flex-1 px-2 py-1 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"`}
+                                    ${isReadOnly ? 'disabled class="read-only-input flex-1 px-2 py-1 border border-slate-200 rounded"' : `onchange="updateEventPhoto('${ev.id}', 'photosLink', this.value)" class="flex-1 px-2 py-1 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-100 outline-none"`}
                                     placeholder="Paste Drive link...">
                                 ${ev.photosLink ? `<a href="${ev.photosLink}" target="_blank" class="bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 hover:bg-blue-100 text-xs">↗</a>` : ''}
                             </div>
@@ -835,7 +845,7 @@
         const row = document.getElementById('table-header-row');
         if (!row) return;
         row.innerHTML = `
-            <th class="px-4 py-3 min-w-[180px] sticky left-0 bg-slate-900 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Event Name</th>
+            <th class="px-4 py-3 min-w-[120px] md:min-w-[180px] sticky left-0 bg-slate-900 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Event Name</th>
             <th class="px-4 py-3 min-w-[90px]">Date</th>
             <th class="px-4 py-3 min-w-[90px]">Time</th>
             <th class="px-4 py-3 min-w-[100px]">Location</th>
@@ -872,12 +882,12 @@
             tr.className = "hover:bg-slate-50 group border-b border-slate-50 last:border-0";
             
             let html = `
-                <td class="px-4 py-3 font-semibold text-slate-900 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">
+                <td class="px-2 md:px-4 py-3 font-semibold text-slate-900 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">
                    <div class="flex items-center gap-2 h-full">
-                        ${ev.name} 
+                        <span class="truncate block max-w-[100px] md:max-w-full" title="${ev.name}">${ev.name}</span>
                         ${
                             hasFiles(ev) 
-                            ? `<button onclick="openEventEditor('${ev.id}', 'files')" class="text-blue-500 hover:text-blue-700 text-sm px-1" title="View Notes & Files">📎</button>` 
+                            ? `<button onclick="openEventEditor('${ev.id}', 'files')" class="text-blue-500 hover:text-blue-700 text-sm px-1 shrink-0" title="View Notes & Files">📎</button>` 
                             : ''
                         }
                    </div>
@@ -930,8 +940,8 @@
                     </select>
                 </td>
                 <td class="px-4 py-3 text-right">
-                    <button onclick="openEventEditor('${ev.id}')" class="text-slate-400 hover:text-blue-500">✎</button>
-                    ${!readOnlyMode ? `<button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-red-500 ml-2">✕</button>` : ''}
+                    <button onclick="openEventEditor('${ev.id}')" class="text-slate-400 hover:text-blue-500 text-lg">✎</button>
+                    ${!readOnlyMode ? `<button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-red-500 ml-2 text-lg">✕</button>` : ''}
                 </td>
             `;
             tr.innerHTML = html;
@@ -1242,14 +1252,14 @@
         document.getElementById('event-modal-content').innerHTML = `
             <div id="form-tab-details" class="space-y-6">
                 <!-- DETAILS FORM -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" ${disabledAttr} value="${data.name||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="col-span-1 md:col-span-2"><label class="text-xs font-bold text-slate-500">Event Name</label><input id="form-name" ${disabledAttr} value="${data.name||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
                     <div><label class="text-xs font-bold text-slate-500">Date</label><input type="date" id="form-date" ${disabledAttr} value="${data.date||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
                     <div><label class="text-xs font-bold text-slate-500">Time</label><input id="form-time" ${disabledAttr} value="${data.time||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
                     <div><label class="text-xs font-bold text-slate-500">Location</label><input id="form-location" ${disabledAttr} value="${data.location||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
                     <div><label class="text-xs font-bold text-slate-500">Budget</label><input type="number" id="form-budget" ${disabledAttr} value="${data.budget||''}" class="w-full px-3 py-2 border rounded ${roClass}"></div>
                 </div>
-                <div class="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
                     <div>
                         <label class="text-xs font-bold text-slate-500">Cart</label>
                         <select id="form-cart" ${disabledAttr} class="w-full px-2 py-2 border rounded ${roClass}">
@@ -1263,7 +1273,7 @@
                 </div>
                 <div class="border-t pt-4">
                     <h3 class="text-sm font-bold text-slate-700 mb-3">Deadlines</h3>
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         ${MILESTONE_KEYS.map(k => {
                             const m = data.deadlines?.[k] || {};
                             return `<div class="bg-white border rounded p-2"><div class="flex justify-between mb-1"><label class="text-xs font-bold">${columnLabels[k]||k}</label><input type="checkbox" id="c-${k}" ${m.completed?'checked':''} ${disabledAttr}></div><input type="date" id="d-${k}" ${disabledAttr} value="${m.date||''}" class="w-full text-xs border rounded mb-1 ${roClass}"><input id="a-${k}" ${disabledAttr} value="${m.assignee||''}" placeholder="Name" class="w-full text-xs border rounded ${roClass}"></div>`
@@ -1280,10 +1290,10 @@
                 </div>
                 
                 <div class="border-t pt-4">
-                     <label class="text-xs font-bold text-slate-500 uppercase mb-3 block">Attachments</label>
-                     <div id="file-upload-container">
+                      <label class="text-xs font-bold text-slate-500 uppercase mb-3 block">Attachments</label>
+                      <div id="file-upload-container">
                         <!-- Files injected here by renderFilesTab -->
-                     </div>
+                      </div>
                 </div>
             </div>
         `;
