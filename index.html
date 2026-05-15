@@ -7,3 +7,3058 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Arts Events Manager — Pro Edition</title>
+    <!-- html2pdf.js for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-dark: #000000;
+            --glass-surface: rgba(15, 15, 15, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
+            --gradient-accent: linear-gradient(135deg, #0A84FF, #BF5AF2);
+            --gradient-success: linear-gradient(135deg, #34C759, #30B0C7);
+            --gradient-danger: linear-gradient(135deg, #FF3B30, #FF9500);
+            --gradient-hover: linear-gradient(135deg, #007AFF, #AF52DE);
+            --gradient-fire: linear-gradient(135deg, #FF9500, #FF3B30);
+            --gradient-nolan: linear-gradient(135deg, #FFD60A, #FF9F0A);
+            --radius-card: 28px;
+            --radius-input: 20px;
+            --radius-button: 100px;
+            --radius-btn: 16px;
+            --radius-pill: 100px;
+            --blur: 40px;
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Base Setup */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        html {
+            background-color: #050505;
+            color-scheme: dark;
+            font-size: 14px;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            color: var(--text-main);
+            background-color: transparent;
+            margin: 0;
+            padding: 0;
+            overflow-y: hidden;
+            overscroll-behavior-y: none;
+            -webkit-user-select: none;
+            user-select: none;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        #bg-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -2;
+            background-color: #050505;
+            background-image:
+                radial-gradient(circle at 5% 5%, rgba(10, 132, 255, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 95% 95%, rgba(191, 90, 242, 0.12) 0%, transparent 45%);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            transition: background-image 0.5s ease;
+        }
+
+        /* Scrollbar Utilities */
+        ::-webkit-scrollbar { width: 8px; height: 8px;}
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; border: 2px solid var(--bg-dark); }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Unified Rounding Utility Classes */
+        .r-card { border-radius: var(--radius-card); }
+        .r-btn { border-radius: var(--radius-btn); }
+        .r-pill { border-radius: var(--radius-pill); }
+
+        .frosted {
+            background: var(--glass-surface);
+            backdrop-filter: blur(var(--blur)) saturate(150%);
+            -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
+            border: 1px solid var(--glass-border);
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100dvh;
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        
+        .app-container.unlocked {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .topbar {
+            position: relative;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 32px;
+            border-radius: 28px;
+            margin-bottom: 15px;
+            margin-top: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Top Navigation Components */
+        .brand-stat { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; display: flex; align-items: center; gap: 8px;}
+        
+        .loader {
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top: 2px solid #0A84FF;
+            border-radius: 50%;
+            width: 12px; height: 12px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Segmented Tabs */
+        .nav-tabs {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            background: rgba(15, 15, 15, 0.85);
+            padding: 10px;
+            border-radius: 100px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+
+        .nav-tab {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .nav-tab.active, .nav-tab.active-tab {
+            background: var(--gradient-accent);
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 15px rgba(10, 132, 255, 0.2);
+        }
+        
+        .btn-action {
+            background: var(--gradient-accent);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-button);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .btn-action:active { transform: scale(0.96); }
+
+        .btn-outline {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: var(--radius-button);
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.1); }
+
+        .btn-action-icon {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            height: 40px; width: 40px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            flex-shrink: 0;
+        }
+        @media(min-width: 768px) { .btn-action-icon { height: 46px; width: 46px; } }
+        .btn-action-icon:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+
+        .btn-stats { 
+            background: var(--gradient-accent); border: none; padding: 0 16px; 
+            box-shadow: 0 8px 20px rgba(10, 132, 255, 0.2); color: white; 
+            height: 40px; font-weight: 700; cursor: pointer; transition: 0.3s;
+        }
+        @media(min-width: 768px) { .btn-stats { height: 46px; padding: 0 24px; } }
+        .btn-stats:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(10, 132, 255, 0.4); }
+
+        /* General Dark Inputs */
+        input, select, textarea {
+            background: rgba(0,0,0,0.3); color: white;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            outline: none; transition: 0.2s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #0A84FF; box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.2); background: rgba(0,0,0,0.5);}
+        select option { background: #111; color: #fff; }
+
+        .modern-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 12px 18px;
+            border-radius: var(--radius-input);
+            color: white;
+            outline: none;
+            font-size: 16px !important;
+            transition: all 0.2s;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .modern-input:focus {
+            border-color: #0A84FF;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* Tables */
+        .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px;}
+        table { width: 100%; text-align: left; border-collapse: collapse; }
+        thead { background: rgba(255,255,255,0.05); }
+        th { padding: 18px 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; border-bottom: 1px solid var(--glass-border); white-space: nowrap; user-select: none;}
+        th.sortable:hover { color: #fff; }
+        td { padding: 18px 20px; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+        tr:hover td { background: rgba(255,255,255,0.03); }
+
+        /* Cards */
+        .card {
+            display: flex; flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+        .card:hover { transform: translateY(-8px); border-color: rgba(255,255,255,0.3); }
+        .card-header { position: relative; height: 180px; width: 100%; overflow: hidden; border-bottom: 1px solid var(--glass-border); }
+        .card-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; }
+        .card:hover .card-img { transform: scale(1.08); }
+        .card-gradient-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.8) 100%); }
+        .card-body { padding: 24px; display: flex; flex-direction: column; flex: 1; }
+
+        /* Calendar Grid */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+        .cal-cell { min-height: 120px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 12px; padding: 10px; transition: 0.2s; overflow: hidden; }
+        .cal-cell:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.2); }
+        .cal-cell.faded { opacity: 0.3; }
+        .cal-event { background: var(--gradient-accent); color: white; font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; box-shadow: 0 4px 10px rgba(10, 132, 255, 0.3);}
+        
+        .cal-deadline {
+            background: rgba(255, 255, 255, 0.05);
+            color: #a1a1aa;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 3px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            transition: 0.2s;
+        }
+        .cal-deadline:hover { background: rgba(255, 255, 255, 0.1); color: #fff; border-color: rgba(255, 255, 255, 0.2); }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 10px rgba(10, 132, 255, 0.15), inset 0 1px 2px rgba(255,255,255,0.1); border-color: rgba(10, 132, 255, 0.15); }
+            50% { box-shadow: 0 0 25px rgba(191, 90, 242, 0.3), inset 0 1px 2px rgba(255,255,255,0.1); border-color: rgba(191, 90, 242, 0.25); }
+            100% { box-shadow: 0 0 10px rgba(10, 132, 255, 0.15), inset 0 1px 2px rgba(255,255,255,0.1); border-color: rgba(10, 132, 255, 0.15); }
+        }
+
+        .login-box {
+            background: rgba(20, 20, 20, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 40px;
+            border-radius: var(--radius-card);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.1);
+            backdrop-filter: blur(30px) saturate(150%);
+            -webkit-backdrop-filter: blur(30px) saturate(150%);
+            animation: pulseGlow 4s infinite alternate ease-in-out;
+        }
+
+        /* Modal Base */
+        .modal { position: fixed; inset: 0; z-index: 999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .modal.hidden { display: none !important; }
+        .modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);}
+
+        .modal-overlay { display: flex; justify-content: center; align-items: center; }
+
+        .modal-content {
+            background: rgba(20, 20, 20, 0.65);
+            backdrop-filter: blur(40px) saturate(150%);
+            -webkit-backdrop-filter: blur(40px) saturate(150%);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.1);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: var(--radius-card);
+            width: 100%;
+            max-width: 900px;
+            position: relative;
+            transform: translateY(30px) scale(0.95);
+            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-overlay.show .modal-content {
+            transform: translateY(0) scale(1);
+        }
+        .modal-header { padding: 24px 32px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;}
+        .modal-body { padding: 32px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 0; }
+        .modal-footer { padding: 24px 32px; border-top: 1px solid var(--glass-border); flex-shrink: 0;}
+
+        .btn-modal { width: 100%; padding: 16px; font-size: 1rem; font-weight: 700; cursor: pointer; border: none; transition: 0.3s cubic-bezier(0.16, 1, 0.3, 1); background: var(--gradient-accent); color: white; }
+        .btn-modal:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(10, 132, 255, 0.4); }
+
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; white-space: nowrap;}
+        .badge-fire { background: var(--gradient-fire); }
+        .badge-ok { background: var(--gradient-success); }
+        .badge-warn { background: var(--gradient-nolan); color: #000; }
+
+        .read-only-input { opacity: 0.6; cursor: not-allowed; }
+
+        @media(max-width: 800px) {
+            .app-container { padding: 0 10px; }
+            .modal { padding: 10px; }
+            .modal-content { max-height: 95vh; border-radius: 24px; }
+            .modal-header, .modal-footer { padding: 16px 20px; }
+            .modal-body { padding: 20px; }
+            .cal-grid { display: flex; flex-direction: column; }
+            .cal-cell { min-height: 60px; }
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="bg-container"></div>
+
+<!-- ====================================================== -->
+<!-- AUTH / LOCK SCREEN -->
+<!-- ====================================================== -->
+<div id="auth-screen" class="fixed inset-0 z-[9999] flex flex-col justify-center items-center p-5 transition-opacity duration-500" style="background: rgba(0,0,0,0.3); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);">
+    <div class="frosted r-card p-8 sm:p-10 w-full max-w-[420px] flex flex-col items-center shadow-2xl">
+        
+        <!-- Minimalist Lock Icon OR Custom App Icon -->
+        <div id="lock-icon-container" class="w-20 h-20 r-pill bg-white/5 border border-white/10 flex items-center justify-center mb-6 text-gray-400 overflow-hidden shadow-xl">
+            <svg id="lock-svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <img id="lock-app-icon" src="" class="w-full h-full object-contain hidden p-2">
+        </div>
+
+        <!-- Gradient App Title -->
+        <h1 id="auth-title" class="font-extrabold text-2xl sm:text-3xl bg-clip-text text-transparent bg-gradient-to-r from-[#0A84FF] to-[#BF5AF2] m-0 tracking-tight leading-none mb-2 text-center">Arts Events Manager</h1>
+        <p id="auth-subtitle" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-8 text-center">Authorized Access Only</p>
+        
+        <!-- Glassy Password Input -->
+        <div class="w-full relative mb-2">
+            <input type="password" id="auth-password" class="w-full px-5 py-4 r-btn text-center text-lg font-bold tracking-widest transition-all duration-300 bg-black/50 border border-white/10 focus:border-[#0A84FF] focus:bg-black/80 placeholder-gray-600 shadow-inner" placeholder="••••••••" onkeypress="if(event.key==='Enter') submitAuth()">
+        </div>
+        <p id="auth-error-msg" class="text-[#FF3B30] text-[10px] font-bold uppercase tracking-widest h-4 opacity-0 transition-opacity duration-300 mb-6 text-center">Incorrect Password</p>
+        
+        <!-- Matching App Action Button -->
+        <button onclick="submitAuth()" class="btn-modal r-btn text-lg w-full">
+            Unlock Dashboard
+        </button>
+    </div>
+</div>
+
+<div class="app-container" id="app-container">
+
+    <!-- TOP BAR -->
+    <div class="frosted r-card mb-8 mt-4 relative md:sticky md:top-4 z-50 shadow-2xl w-full mx-auto flex flex-col xl:flex-row gap-4 p-4 md:p-5">
+        
+        <!-- Row 1 (Mobile) / Left (Desktop): Brand + Main Actions -->
+        <div class="flex justify-between items-center w-full xl:w-auto gap-4 flex-shrink-0">
+            <!-- Brand -->
+            <div class="flex flex-col min-w-0">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <img id="app-header-icon" src="" class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain hidden shadow-sm border border-white/20 bg-black/20 flex-shrink-0" alt="App Icon">
+                    <h1 id="app-title-display" class="font-extrabold text-xl sm:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-[#0A84FF] to-[#BF5AF2] m-0 tracking-tight leading-none truncate">Arts Events Manager</h1>
+                </div>
+                <div class="flex items-center gap-3 mt-1.5">
+                    <select id="year-selector" onchange="handleYearChange(this.value)" class="bg-[#0A84FF]/10 hover:bg-[#0A84FF]/20 border border-[#0A84FF]/20 r-pill px-2 py-1 text-[10px] sm:text-xs font-bold text-[#0A84FF] outline-none cursor-pointer transition appearance-none shadow-sm">
+                    </select>
+                    <div class="brand-stat !mt-0">
+                        <span id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                        <span id="sync-text" class="text-[10px] sm:text-xs">Connecting...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Main Actions -->
+            <div class="flex xl:hidden items-center gap-2 flex-shrink-0">
+                <button onclick="openSettings()" class="btn-action-icon" title="Settings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+                <button onclick="openEventEditor()" class="btn-stats r-pill flex items-center justify-center gap-1.5">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span class="text-xs sm:text-sm">Event</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Row 2 & 3 (Mobile) / Right (Desktop): Tabs and Utilities -->
+        <div class="flex flex-col md:flex-row items-center justify-between xl:justify-end gap-4 w-full min-w-0 flex-1">
+            
+            <!-- Segmented Navigation Tabs -->
+            <div class="flex w-full md:w-auto bg-black/40 p-1.5 r-pill border border-white/10 flex-shrink-0">
+                <button onclick="switchView('events')" id="nav-events" class="nav-tab active-tab flex-1 whitespace-nowrap px-2 sm:px-4 py-2 text-xs sm:text-sm font-bold text-gray-400 r-pill text-center">Events</button>
+                <button onclick="switchView('calendar')" id="nav-calendar" class="nav-tab flex-1 whitespace-nowrap px-2 sm:px-4 py-2 text-xs sm:text-sm font-bold text-gray-400 r-pill text-center">Calendar</button>
+                <button onclick="switchView('budget')" id="nav-budget" class="nav-tab flex-1 whitespace-nowrap px-2 sm:px-4 py-2 text-xs sm:text-sm font-bold text-gray-400 r-pill text-center">Budget</button>
+                <button onclick="switchView('photos')" id="nav-photos" class="nav-tab flex-1 whitespace-nowrap px-2 sm:px-4 py-2 text-xs sm:text-sm font-bold text-gray-400 r-pill text-center">Photos</button>
+            </div>
+
+            <!-- Utilities Group -->
+            <div class="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 flex-shrink-0">
+                <!-- Total Budget Display -->
+                <div class="flex items-center gap-2 px-4 py-2 r-pill border border-white/10 bg-black/20 h-[40px] md:h-[46px] flex-1 md:flex-none justify-center">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Budget</p>
+                    <p id="total-budget-display" class="text-sm md:text-lg font-bold text-white">$0</p>
+                </div>
+
+                <!-- Export Actions -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button onclick="openSettings()" class="btn-action-icon hidden xl:flex" title="Settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                    <button onclick="exportToCSV()" class="btn-action-icon text-xs font-bold" title="Export to CSV">CSV</button>
+                    <button onclick="downloadPDF()" class="btn-action-icon text-xs font-bold" title="Download Full Report PDF">PDF</button>
+                    
+                    <!-- Desktop Add Event CTA -->
+                    <button onclick="openEventEditor()" class="btn-stats r-pill hidden xl:flex items-center justify-center gap-2 ml-1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>New Event</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- VIEW: EVENTS TABLE -->
+    <!-- ====================================================== -->
+    <div id="view-events" class="mb-10">
+        
+        <!-- Needs Attention Widget -->
+        <div id="upcoming-widget" class="mb-8 frosted r-card p-6 hidden">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-8 h-8 rounded-full bg-[#FF3B30]/20 text-[#FF3B30] flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </div>
+                <h3 class="font-bold text-lg text-white">Needs Attention</h3>
+            </div>
+            <div id="upcoming-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- Local Events Header -->
+        <div class="flex items-center justify-between gap-5 mb-6 px-1">
+            <h2 class="font-bold text-xl text-white hidden sm:block">Event Dashboard</h2>
+            <div id="events-view-toggles" class="flex items-center bg-black/20 r-pill border border-white/10 p-1 h-[42px] w-full sm:w-auto">
+                <button onclick="setEventsView('list')" id="btn-view-list" class="px-4 h-full flex-1 sm:flex-none r-pill text-sm font-bold bg-white/10 text-white transition flex items-center justify-center outline-none" title="List View">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span class="ml-2 sm:hidden">List View</span>
+                </button>
+                <button onclick="setEventsView('card')" id="btn-view-card" class="px-4 h-full flex-1 sm:flex-none r-pill text-sm font-bold bg-transparent text-gray-400 hover:text-white transition flex items-center justify-center outline-none" title="Grid View">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span class="ml-2 sm:hidden">Card View</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- List View -->
+        <div id="events-list-view" class="frosted r-card overflow-hidden">
+            <div class="table-container">
+                <table id="events-table-main">
+                    <thead>
+                        <tr id="table-header-row">
+                            <!-- Headers injected via JS -->
+                        </tr>
+                    </thead>
+                    <tbody id="events-body">
+                        <!-- Rows rendered via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Card View -->
+        <div id="events-card-view" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Cards injected via JS -->
+        </div>
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden frosted r-card flex-col items-center justify-center py-24 text-gray-500">
+            <div class="mb-4 opacity-50 text-gray-400">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+            <p class="font-medium text-lg">No events found. Create one to get started!</p>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- VIEW: CALENDAR -->
+    <!-- ====================================================== -->
+    <div id="view-calendar" class="hidden mb-10">
+        <div class="frosted r-card p-4 sm:p-6 md:p-8">
+            <div class="flex justify-between items-center mb-6 sm:mb-8">
+                <h2 id="calendar-month-display" class="font-bold text-xl sm:text-2xl text-white">Month Year</h2>
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button onclick="changeMonth(-1)" class="w-8 sm:w-10 h-8 sm:h-10 r-btn bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition border border-white/10 outline-none">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <button onclick="changeMonth(1)" class="w-8 sm:w-10 h-8 sm:h-10 r-btn bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition border border-white/10 outline-none">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="cal-grid text-center mb-2 sm:mb-3">
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sun</div>
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mon</div>
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Tue</div>
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Wed</div>
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Thu</div>
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Fri</div>
+                <div class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sat</div>
+            </div>
+            
+            <div id="calendar-grid" class="cal-grid">
+                <!-- Cells injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- VIEW: BUDGET MANAGER -->
+    <!-- ====================================================== -->
+    <div id="view-budget" class="hidden space-y-6 mb-10">
+        
+        <!-- 1. Event Financials Table -->
+        <div class="frosted r-card overflow-hidden" id="event-performance-card">
+            <div class="p-6 border-b border-white/10">
+                <h2 class="font-bold text-xl">Event Financial Performance</h2>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="min-w-[200px] !cursor-default">Event Name</th>
+                            <th class="!cursor-default">Total Cost</th>
+                            <th class="!cursor-default">Food Cost</th>
+                            <th class="w-[150px] !cursor-default">Attendance</th>
+                            <th class="!cursor-default">Cost / Student</th>
+                        </tr>
+                    </thead>
+                    <tbody id="event-financials-body">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. Monthly Budget Overview -->
+        <div class="frosted r-card overflow-hidden" id="budget-overview-card">
+            <div class="p-6 border-b border-white/10 flex justify-between items-center cursor-pointer transition hover:bg-white/5 outline-none" onclick="toggleBudgetBreakdown()">
+                <h2 class="font-bold text-lg sm:text-xl flex items-center gap-3">
+                    <span id="budget-caret" class="transform transition-transform duration-200 text-gray-400 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                    Monthly Breakdown
+                </h2>
+                <span class="text-[10px] sm:text-xs text-gray-400 bg-black/40 px-3 sm:px-4 py-2 r-pill border border-white/10 font-bold tracking-wider uppercase">FY: July-June</span>
+            </div>
+            
+            <div id="budget-breakdown-content" class="transition-all duration-300">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="w-[150px] !cursor-default">Month</th>
+                                <th class="w-[200px] !cursor-default">Allocated</th>
+                                <th class="text-[#0A84FF] !cursor-default">Used</th>
+                                <th class="text-right !cursor-default">Remaining</th>
+                                <th class="w-[80px] text-center action-col !cursor-default">Act</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-months-body">
+                            <!-- Monthly rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Add Month Button -->
+                <div class="p-5 border-t border-white/10 action-col text-center" id="add-month-container">
+                    <button onclick="addBudgetMonth()" class="text-sm font-bold text-[#BF5AF2] hover:text-white transition flex items-center gap-2 justify-center w-full outline-none">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Add Custom Month
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 3. Expense Entry Form -->
+            <div class="frosted r-card p-6 sm:p-8 action-col flex flex-col justify-between" id="expense-form-card">
+                <div>
+                    <h3 class="font-bold text-xl mb-6 flex items-center gap-3">
+                        <span class="bg-black/20 text-white p-2.5 r-btn border border-white/10 flex items-center justify-center">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        </span> 
+                        Add Expense
+                    </h3>
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Expense Name</label>
+                            <input id="exp-name" class="w-full px-4 py-3 r-btn">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Cost ($)</label>
+                                <input id="exp-cost" type="number" step="0.01" class="w-full px-4 py-3 r-btn">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Date</label>
+                                <input id="exp-date" type="date" class="w-full px-4 py-3 r-btn">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Budget Month</label>
+                                <select id="exp-month" class="w-full px-4 py-3 appearance-none r-btn"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Category</label>
+                                <select id="exp-category" class="w-full px-4 py-3 appearance-none r-btn">
+                                    <option value="General">General</option>
+                                    <option value="Food">Food</option>
+                                    <option value="Transport">Transport</option>
+                                    <option value="Decor">Decor</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Link to Event</label>
+                            <select id="exp-event" class="w-full px-4 py-3 appearance-none r-btn"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-8">
+                    <button id="btn-submit-expense" onclick="saveExpense()" class="flex-1 bg-white/10 border border-white/20 text-white py-4 r-btn font-bold hover:bg-white/20 transition text-lg shadow-lg outline-none">
+                        Submit Expense
+                    </button>
+                    <button id="btn-cancel-expense" onclick="cancelEditExpense()" class="hidden bg-[#FF3B30]/10 border border-[#FF3B30]/30 text-[#FF3B30] px-6 py-4 r-btn font-bold hover:bg-[#FF3B30]/20 transition text-lg shadow-lg outline-none">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. Recent Expenses List -->
+            <div class="frosted r-card flex flex-col h-[500px] lg:h-[600px]" id="expenses-list-card">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                    <h3 class="font-bold text-xl">Recent Expenses</h3>
+                    <div class="flex gap-2">
+                        <button onclick="deleteAllExpenses()" class="text-[10px] font-bold text-[#FF3B30] bg-[#FF3B30]/10 px-3 py-1.5 r-pill border border-[#FF3B30]/30 hover:bg-[#FF3B30]/20 transition uppercase tracking-wider flex items-center gap-1 sm:gap-2">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            <span class="hidden sm:inline">Delete All</span>
+                        </button>
+                        <label class="cursor-pointer text-[10px] font-bold text-[#0A84FF] bg-[#0A84FF]/10 px-3 py-1.5 r-pill border border-[#0A84FF]/30 hover:bg-[#0A84FF]/20 transition uppercase tracking-wider flex items-center gap-1 sm:gap-2">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            <span class="hidden sm:inline">Import CSV</span>
+                            <span class="sm:hidden">Import</span>
+                            <input type="file" accept=".csv" class="hidden" onchange="importExpensesCSV(event)">
+                        </label>
+                    </div>
+                </div>
+                <div class="overflow-y-auto flex-1 p-5 space-y-4" id="expenses-list">
+                    <!-- Expenses list injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- VIEW: PHOTOS MANAGER -->
+    <!-- ====================================================== -->
+    <div id="view-photos" class="hidden mb-10">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8" id="photos-grid">
+            <!-- Cards injected here -->
+        </div>
+    </div>
+
+</div>
+
+<!-- ====================================================== -->
+<!-- SETTINGS MODAL -->
+<!-- ====================================================== -->
+<div id="settings-modal" class="hidden modal z-[10000]">
+    <div class="modal-bg" onclick="closeSettings()"></div>
+    <div class="modal-content r-card" style="max-width: 550px;">
+        <div class="modal-header">
+            <h2 class="text-xl sm:text-2xl font-bold flex items-center gap-3">
+                <svg class="text-gray-400 hidden sm:block" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                App Settings
+            </h2>
+            <button class="text-gray-400 hover:text-white bg-transparent border-none cursor-pointer p-2 flex items-center justify-center transition outline-none" onclick="closeSettings()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="modal-body space-y-8">
+            <!-- App Password Config -->
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Master Password Lock</label>
+                <input type="text" id="setting-app-password" class="w-full px-5 py-4 r-btn text-base" placeholder="Leave blank to disable lock screen...">
+                <p class="text-[10px] text-gray-500 mt-2">Setting this will require a password to access the app on any device.</p>
+            </div>
+
+            <!-- App Name Config -->
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Application Name</label>
+                <input id="setting-app-name" class="w-full px-5 py-4 r-btn text-base" placeholder="Arts Events Manager">
+            </div>
+
+            <!-- App Background Config -->
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-2">App Background</h3>
+                <div class="flex items-center gap-3">
+                    <label class="cursor-pointer bg-black/20 hover:bg-black/40 border border-white/10 text-white px-4 py-2.5 r-btn text-xs font-bold transition flex items-center justify-center flex-1 text-center">
+                        Upload Custom Background
+                        <input type="file" class="hidden" accept="image/*" onchange="handleBackgroundUpload(event)" id="bg-upload-input">
+                    </label>
+                    <button onclick="clearBackground()" class="bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 text-[#FF3B30] border border-[#FF3B30]/30 px-4 py-2.5 r-btn text-xs font-bold transition outline-none">Clear</button>
+                </div>
+                <div id="bg-upload-status" class="text-[10px] text-[#0A84FF] font-bold mt-2 text-center hidden"></div>
+            </div>
+
+            <!-- App Icon Config -->
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-2">App Icon</h3>
+                <div class="flex items-center gap-3">
+                    <label class="cursor-pointer bg-black/20 hover:bg-black/40 border border-white/10 text-white px-4 py-2.5 r-btn text-xs font-bold transition flex items-center justify-center flex-1 text-center">
+                        Upload Custom Icon
+                        <input type="file" class="hidden" accept="image/*" onchange="handleIconUpload(event)" id="icon-upload-input">
+                    </label>
+                    <button onclick="clearIcon()" class="bg-[#FF3B30]/10 hover:bg-[#FF3B30]/20 text-[#FF3B30] border border-[#FF3B30]/30 px-4 py-2.5 r-btn text-xs font-bold transition outline-none">Clear</button>
+                </div>
+                <div id="icon-upload-status" class="text-[10px] text-[#0A84FF] font-bold mt-2 text-center hidden"></div>
+            </div>
+
+            <div>
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-white/10 pb-2">Column Labels & Defaults</h3>
+                <div class="flex justify-between text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-3 px-1">
+                    <span>Milestone Label</span>
+                    <span class="mr-2">Weeks Out</span>
+                </div>
+                <div id="column-label-editor" class="space-y-4"></div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button onclick="saveSettings()" class="btn-modal r-btn outline-none">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- EVENT MODAL -->
+<!-- ====================================================== -->
+<div id="event-modal" class="hidden modal">
+    <div class="modal-bg" onclick="closeEventModal()"></div>
+    <div class="modal-content r-card">
+        
+        <!-- Modal Header -->
+        <div class="modal-header flex-col items-start gap-5">
+            <div class="flex justify-between items-center w-full">
+                <h2 id="event-modal-title" class="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#0A84FF] to-[#BF5AF2]">Event Details</h2>
+                <button onclick="closeEventModal()" class="text-gray-400 hover:text-white bg-transparent border-none cursor-pointer p-1 flex items-center justify-center transition outline-none">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="flex gap-2 sm:gap-3 w-full">
+                <button id="tab-details" onclick="switchTab('details')" class="flex-1 py-2 sm:py-3 text-xs sm:text-sm font-bold r-btn transition border border-[#0A84FF] bg-[#0A84FF]/10 text-[#0A84FF] outline-none">Details</button>
+                <button id="tab-files" onclick="switchTab('files')" class="flex-1 py-2 sm:py-3 text-xs sm:text-sm font-bold r-btn transition border border-transparent text-gray-400 hover:bg-black/20 hover:text-white outline-none">Notes & Files</button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div id="event-modal-content" class="modal-body">
+            <!-- Form content injected here -->
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer" id="event-modal-footer">
+            <button onclick="saveEvent()" class="btn-modal r-btn text-lg outline-none">Save Event</button>
+        </div>
+    </div>
+</div>
+
+<!-- ====================================================== -->
+<!-- FILE PREVIEW MODAL -->
+<!-- ====================================================== -->
+<div id="file-preview-modal" class="hidden modal z-[10000]">
+    <div class="modal-bg" onclick="closeFilePreview()"></div>
+    <div class="modal-content r-card !max-w-5xl !h-[85vh] flex flex-col !p-0 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/20">
+        <!-- Preview Header -->
+        <div class="modal-header border-b border-white/10 bg-black/40 backdrop-blur-xl">
+            <h2 id="file-preview-title" class="text-lg sm:text-xl font-bold text-white truncate pr-4">File Preview</h2>
+            <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                <a id="file-preview-download" href="#" target="_blank" class="text-[10px] sm:text-xs font-bold text-[#0A84FF] bg-[#0A84FF]/10 px-3 py-2 r-pill border border-[#0A84FF]/30 hover:bg-[#0A84FF]/20 transition flex items-center gap-2 uppercase tracking-wider outline-none" download>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Download
+                </a>
+                <button onclick="closeFilePreview()" class="text-gray-400 hover:text-[#FF3B30] bg-black/20 hover:bg-[#FF3B30]/10 border border-transparent hover:border-[#FF3B30]/20 r-pill p-2 flex items-center justify-center transition outline-none">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+        <!-- Preview Content -->
+        <div id="file-preview-body" class="flex-1 bg-black/80 relative overflow-hidden flex items-center justify-center p-4 sm:p-8">
+            <!-- Preview elements injected here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==============================================================
+    // 1. STATE & CONFIG
+    // ==============================================================
+    
+    const Icons = {
+        close: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+        edit: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+        delete: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+        clip: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>`,
+        calendar: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+        pin: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
+        dollar: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+        file: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`,
+        folderOpen: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="9" y1="14" x2="15" y2="14"></line></svg>`,
+        external: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`,
+        sortUp: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>`,
+        sortDown: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`
+    };
+
+    // Supabase Configuration
+    const SUPABASE_URL = "https://knlmtrzxtqcmgaydwzqz.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_9ROUJP2trRbgsbnrCB5K9g_KXSwis3O";
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let appName = 'Arts Events Manager';
+    let appBackgroundImage = localStorage.getItem('arts_app_bg') || '';
+    let appIconImage = localStorage.getItem('arts_app_icon') || '';
+    let masterPasswordHash = ''; 
+    let isUnlocked = false;
+    
+    // Safety & Race Condition Locks
+    let syncSafe = false; 
+    let isSyncing = false;
+    let needsSync = false;
+    let localVersion = 0; // Incremented on every local change to invalidate in-flight fetches
+    let syncInterval = null;
+    
+    const DEFAULT_BUDGET_MONTHS = [
+        { name: "July", allocated: 0 }, { name: "August", allocated: 13000 }, { name: "September", allocated: 5600 },
+        { name: "October", allocated: 7050 }, { name: "November", allocated: 2000 }, { name: "December", allocated: 1000 },
+        { name: "January", allocated: 4000 }, { name: "February", allocated: 6000 }, { name: "March", allocated: 3000 },
+        { name: "April", allocated: 750 }, { name: "May", allocated: 1500 }, { name: "June", allocated: 0 }
+    ];
+    
+    let columnLabels = {
+        checklist: "Event Checklist", marketing: "Marketing Req", amazon: "Amazon", setlist: "Setlist", chalkboards: "Chalkboards", posters: "Posters Up"
+    };
+    
+    let milestoneOffsets = {
+        checklist: 4, marketing: 3, amazon: 2, setlist: 2, chalkboards: 1, posters: 1
+    };
+
+    const MILESTONE_KEYS = ["checklist", "marketing", "amazon", "setlist", "chalkboards", "posters"];
+    
+    // Yearly Data State
+    let currentYear = localStorage.getItem('arts_current_year') || '2025-2026';
+    let availableYears = [currentYear];
+
+    let eventsData = [];
+    let expensesData = [];
+    let budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
+
+    let editingEventId = null; 
+    let editingExpenseId = null; 
+    let tempFiles = {}; 
+    let currentView = 'events';
+    let isReadOnly = false;
+    let eventsViewMode = localStorage.getItem('arts_view_mode') || 'list';
+
+    // Sorting State
+    let sortCol = 'date';
+    let sortDir = 'asc';
+
+    // Calendar State
+    let currentCalDate = new Date();
+
+    // ==============================================================
+    // 2. HELPER FUNCTIONS
+    // ==============================================================
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        return `${parseInt(m)}/${parseInt(d)}`;
+    }
+
+    function getDeadlineStatus(dateStr, isCompleted) {
+        if (!dateStr) return 'none';
+        if (isCompleted) return 'completed';
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const [y, m, d] = dateStr.split('-');
+        const due = new Date(y, m - 1, d); 
+        const diffTime = due - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return 'overdue';
+        if (diffDays <= 14) return 'warning';
+        return 'safe';
+    }
+
+    function getStatusClasses(status) {
+        switch(status) {
+            case 'completed': return 'badge badge-ok';
+            case 'overdue': return 'badge badge-fire';
+            case 'warning': return 'badge badge-warn text-black';
+            default: return 'badge border border-white/20 bg-black/20';
+        }
+    }
+
+    function hasFiles(ev) {
+        const hasNotes = ev.notes && ev.notes.trim().length > 0;
+        if (!ev.files) return hasNotes;
+        const hasUploads = Object.values(ev.files).some(arr => arr && arr.length > 0);
+        return hasUploads || hasNotes;
+    }
+    
+    function renderAppTitle() {
+        const displayEl = document.getElementById('app-title-display');
+        const authEl = document.getElementById('auth-title');
+        
+        if (displayEl) displayEl.innerText = appName;
+        if (authEl) authEl.innerText = appName;
+        document.title = `${appName} — Pro Edition`;
+    }
+
+    // ==============================================================
+    // 3. CORE UI & INIT
+    // ==============================================================
+    
+    async function initApp() {
+        await loadMasterIndex(); 
+
+        if (!masterPasswordHash) {
+            unlockApp();
+        } else {
+            const localAuth = localStorage.getItem('arts_auth_token');
+            if (localAuth === masterPasswordHash) {
+                unlockApp();
+            } else {
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('auth-password').focus();
+            }
+        }
+    }
+
+    window.submitAuth = function() {
+        const input = document.getElementById('auth-password').value;
+        const hashedInput = btoa(input); 
+        
+        if (!masterPasswordHash || hashedInput === masterPasswordHash) {
+            localStorage.setItem('arts_auth_token', hashedInput);
+            document.getElementById('auth-screen').classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('auth-screen').classList.add('hidden');
+                unlockApp();
+            }, 500);
+        } else {
+            const passInput = document.getElementById('auth-password');
+            const errorMsg = document.getElementById('auth-error-msg');
+            
+            passInput.value = '';
+            passInput.classList.add('!border-[#FF3B30]', '!bg-[#FF3B30]/20');
+            errorMsg.classList.remove('opacity-0');
+            
+            // Add a quick shake animation for the error state
+            passInput.style.transform = 'translateX(-10px)';
+            setTimeout(() => passInput.style.transform = 'translateX(10px)', 100);
+            setTimeout(() => passInput.style.transform = 'translateX(-10px)', 200);
+            setTimeout(() => passInput.style.transform = 'translateX(10px)', 300);
+            setTimeout(() => passInput.style.transform = 'translateX(0)', 400);
+
+            setTimeout(() => {
+                passInput.classList.remove('!border-[#FF3B30]', '!bg-[#FF3B30]/20');
+                errorMsg.classList.add('opacity-0');
+            }, 2000);
+        }
+    };
+
+    function unlockApp() {
+        isUnlocked = true;
+        document.getElementById('app-container').classList.add('unlocked');
+        
+        renderYearSelector();
+        renderAppTitle();
+        renderTableHeader();
+        renderEvents();
+        renderBudgetView();
+        renderPhotosView();
+        renderCalendar();
+        updateSyncUI();
+        startCloudSync();
+        setEventsView(eventsViewMode);
+    }
+
+    window.switchView = function(viewName) {
+        currentView = viewName;
+        const views = { events: 'view-events', calendar: 'view-calendar', budget: 'view-budget', photos: 'view-photos' };
+        const tabs = { events: 'nav-events', calendar: 'nav-calendar', budget: 'nav-budget', photos: 'nav-photos' };
+
+        Object.values(views).forEach(id => document.getElementById(id).classList.add('hidden'));
+        Object.values(tabs).forEach(id => document.getElementById(id).classList.remove('active-tab'));
+
+        if (views[viewName]) document.getElementById(views[viewName]).classList.remove('hidden');
+        if (tabs[viewName]) document.getElementById(tabs[viewName]).classList.add('active-tab');
+
+        if (viewName === 'budget') renderBudgetView();
+        if (viewName === 'photos') renderPhotosView();
+        if (viewName === 'calendar') renderCalendar();
+    };
+
+    window.setEventsView = function(mode) {
+        eventsViewMode = mode;
+        localStorage.setItem('arts_view_mode', mode);
+        
+        const btnList = document.getElementById('btn-view-list');
+        const btnCard = document.getElementById('btn-view-card');
+        const listView = document.getElementById('events-list-view');
+        const cardView = document.getElementById('events-card-view');
+        
+        if (mode === 'list') {
+            btnList.classList.replace('bg-transparent', 'bg-white/10');
+            btnList.classList.replace('text-gray-400', 'text-white');
+            btnCard.classList.replace('bg-white/10', 'bg-transparent');
+            btnCard.classList.replace('text-white', 'text-gray-400');
+            
+            if (eventsData.length > 0) {
+                listView.classList.remove('hidden');
+                cardView.classList.add('hidden');
+                cardView.classList.remove('grid'); 
+            }
+        } else {
+            btnCard.classList.replace('bg-transparent', 'bg-white/10');
+            btnCard.classList.replace('text-gray-400', 'text-white');
+            btnList.classList.replace('bg-white/10', 'bg-transparent');
+            btnList.classList.replace('text-white', 'text-gray-400');
+            
+            if (eventsData.length > 0) {
+                cardView.classList.remove('hidden');
+                cardView.classList.add('grid');
+                listView.classList.add('hidden');
+            }
+        }
+    };
+    
+    window.toggleBudgetBreakdown = function() {
+        const content = document.getElementById('budget-breakdown-content');
+        const caret = document.getElementById('budget-caret');
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            caret.classList.remove('-rotate-90');
+        } else {
+            content.classList.add('hidden');
+            caret.classList.add('-rotate-90');
+        }
+    }
+
+    // ==============================================================
+    // 4. EXPORTS (PDF / CSV)
+    // ==============================================================
+    
+    window.downloadPDF = function() {
+        const btn = document.querySelector('button[onclick="downloadPDF()"]');
+        if(!btn) return;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = "⏳";
+        btn.disabled = true;
+
+        setTimeout(() => {
+            const container = document.createElement('div');
+            container.style.padding = '30px';
+            container.style.fontFamily = 'sans-serif';
+            container.style.background = '#000';
+            container.style.color = '#fff';
+            container.style.width = '1100px';
+
+            const title = document.createElement('h1');
+            title.innerText = appName + " Report";
+            title.style.textAlign = 'center';
+            title.style.marginBottom = '20px';
+            title.style.color = '#0A84FF';
+            container.appendChild(title);
+
+            const h2Events = document.createElement('h2');
+            h2Events.innerText = "Events Overview";
+            h2Events.style.borderBottom = '1px solid #333';
+            h2Events.style.paddingBottom = '10px';
+            container.appendChild(h2Events);
+
+            const eventsClone = document.getElementById('events-table-main').cloneNode(true);
+            const rows = eventsClone.rows;
+            for(let i=0; i<rows.length; i++) {
+                if(rows[i].cells.length > 0) rows[i].deleteCell(-1); 
+            }
+            container.appendChild(eventsClone);
+
+            let opt = {
+                margin:       0.5,
+                filename:     `${appName}_Report.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 1.5, useCORS: true, logging: false, backgroundColor: '#000' },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(container).save().then(() => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
+                alert("PDF Error: " + err.message);
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            });
+        }, 200);
+    };
+
+    window.exportToCSV = function() {
+        if (eventsData.length === 0) return alert("No events to export.");
+        
+        let headers = ["Event Name", "Date", "Time", "Location", "Coordinator", "Budget", "Spent", "Remaining", "Status", "Cart", "Attendance"];
+        MILESTONE_KEYS.forEach(k => headers.push(columnLabels[k] + " Deadline", columnLabels[k] + " Assignee", columnLabels[k] + " Status"));
+        
+        let csvContent = headers.join(',') + '\n';
+        
+        const sorted = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
+        
+        sorted.forEach(ev => {
+            let spent = expensesData.filter(e => e.eventId === ev.id).reduce((sum, e) => sum + (Number(e.cost)||0), 0);
+            let remaining = (Number(ev.budget) || 0) - spent;
+            
+            let row = [
+                `"${(ev.name||'').replace(/"/g, '""')}"`,
+                `"${ev.date||''}"`,
+                `"${ev.time||''}"`,
+                `"${(ev.location||'').replace(/"/g, '""')}"`,
+                `"${(ev.contact||'').replace(/"/g, '""')}"`,
+                ev.budget || 0,
+                spent,
+                remaining,
+                `"${ev.status||''}"`,
+                `"${ev.cart||''}"`,
+                ev.attendance || 0
+            ];
+            
+            MILESTONE_KEYS.forEach(k => {
+                let m = ev.deadlines?.[k] || {};
+                row.push(`"${m.date||''}"`);
+                row.push(`"${(m.assignee||'').replace(/"/g, '""')}"`);
+                row.push(`"${m.completed ? 'Completed' : 'Pending'}"`);
+            });
+            
+            csvContent += row.join(',') + '\n';
+        });
+        
+        let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement("a");
+        let url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Arts_Events_${currentYear}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // ==============================================================
+    // 5. RENDER FUNCTIONS & SORTING
+    // ==============================================================
+
+    window.handleSort = function(col) {
+        if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortCol = col;
+            sortDir = 'asc';
+        }
+        renderTableHeader();
+        renderEvents();
+    };
+
+    function renderTableHeader() {
+        const row = document.getElementById('table-header-row');
+        if (!row) return;
+        
+        const thClass = "cursor-pointer hover:text-white transition group select-none";
+        const getIcon = (c) => sortCol === c ? `<span class="ml-1 inline-flex text-[#0A84FF]">${sortDir === 'asc' ? Icons.sortUp : Icons.sortDown}</span>` : `<span class="ml-1 inline-flex text-transparent group-hover:text-gray-500">${Icons.sortDown}</span>`;
+
+        row.innerHTML = `
+            <th class="min-w-[200px] ${thClass}" onclick="handleSort('name')">Event Name ${getIcon('name')}</th>
+            <th class="min-w-[100px] ${thClass}" onclick="handleSort('date')">Date ${getIcon('date')}</th>
+            <th class="min-w-[100px] ${thClass}" onclick="handleSort('time')">Time ${getIcon('time')}</th>
+            <th class="min-w-[140px] ${thClass}" onclick="handleSort('location')">Location ${getIcon('location')}</th>
+            <th class="min-w-[130px] ${thClass}" onclick="handleSort('budget')">Budget ${getIcon('budget')}</th>
+            <th class="min-w-[100px] ${thClass}" onclick="handleSort('cart')">Cart ${getIcon('cart')}</th>
+            <th class="min-w-[120px] ${thClass}" onclick="handleSort('status')">Status ${getIcon('status')}</th>
+            <th class="w-[80px] text-right !cursor-default">Actions</th>
+        `;
+        const refNode = row.children[5];
+        MILESTONE_KEYS.forEach(key => {
+            const th = document.createElement('th');
+            th.className = "text-center min-w-[140px] !cursor-default";
+            th.textContent = columnLabels[key] || key;
+            row.insertBefore(th, refNode);
+        });
+    }
+
+    function renderUpcomingDeadlines() {
+        const widget = document.getElementById('upcoming-widget');
+        const list = document.getElementById('upcoming-list');
+        
+        if (!widget || !list) return;
+
+        let upcoming = [];
+        eventsData.forEach(ev => {
+            MILESTONE_KEYS.forEach(k => {
+                let m = ev.deadlines?.[k];
+                if (m && m.date && !m.completed) {
+                    let due = new Date(m.date + 'T12:00:00');
+                    let today = new Date(); today.setHours(0,0,0,0);
+                    let diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays <= 14) {
+                        upcoming.push({
+                            evId: ev.id,
+                            evName: ev.name,
+                            task: columnLabels[k] || k,
+                            dateStr: m.date,
+                            diff: diffDays,
+                            assignee: m.assignee || 'Unassigned'
+                        });
+                    }
+                }
+            });
+        });
+
+        if (upcoming.length === 0) {
+            widget.classList.add('hidden');
+            return;
+        }
+
+        widget.classList.remove('hidden');
+        upcoming.sort((a,b) => a.diff - b.diff);
+        
+        // Show top 8 items
+        const topItems = upcoming.slice(0, 8);
+        
+        list.innerHTML = topItems.map(item => {
+            let statusText = item.diff < 0 ? `${Math.abs(item.diff)}d Overdue` : item.diff === 0 ? 'Due Today' : `In ${item.diff}d`;
+            let colorClass = item.diff < 0 ? 'text-[#FF3B30]' : item.diff <= 3 ? 'text-[#FFD60A]' : 'text-[#34C759]';
+            
+            return `
+                <div class="bg-black/20 border border-white/10 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition" onclick="openEventEditor('${item.evId}')">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mr-2" title="${item.task}">${item.task}</span>
+                        <span class="text-[10px] font-bold ${colorClass} whitespace-nowrap">${statusText}</span>
+                    </div>
+                    <div class="font-bold text-sm text-white truncate mb-1" title="${item.evName}">${item.evName}</div>
+                    <div class="text-[10px] text-gray-500 font-medium">${formatDate(item.dateStr)} • ${item.assignee}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderEvents() {
+        const tbody = document.getElementById('events-body');
+        const cardView = document.getElementById('events-card-view');
+        const emptyState = document.getElementById('empty-state');
+        const listView = document.getElementById('events-list-view');
+
+        if (!tbody || !cardView) return;
+        
+        tbody.innerHTML = '';
+        cardView.innerHTML = '';
+        
+        if (eventsData.length === 0) {
+            emptyState.classList.replace('hidden','flex');
+            listView.classList.add('hidden');
+            cardView.classList.add('hidden');
+            document.getElementById('upcoming-widget').classList.add('hidden');
+            return;
+        } else {
+            emptyState.classList.replace('flex','hidden');
+            setEventsView(eventsViewMode);
+            renderUpcomingDeadlines();
+        }
+
+        const sorted = [...eventsData].sort((a,b) => {
+            let valA = a[sortCol]; let valB = b[sortCol];
+            
+            if (sortCol === 'budget') {
+                valA = Number(valA) || 0; valB = Number(valB) || 0;
+            } else if (sortCol === 'date') {
+                valA = new Date(valA || '2099-01-01'); valB = new Date(valB || '2099-01-01');
+            } else {
+                valA = (valA || '').toLowerCase(); valB = (valB || '').toLowerCase();
+            }
+
+            if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        sorted.forEach(ev => {
+            const evExpenses = expensesData.filter(e => e.eventId === ev.id);
+            const totalCost = evExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+            const remaining = (Number(ev.budget) || 0) - totalCost;
+            const remainingColor = remaining < 0 ? 'text-[#FF3B30]' : 'text-white';
+
+            const tr = document.createElement('tr');
+            
+            let html = `
+                <td class="font-bold text-white">
+                   <div class="flex items-center justify-between gap-3">
+                        <span title="${ev.name}" class="whitespace-nowrap">${ev.name}</span>
+                        ${hasFiles(ev) ? `<button onclick="openEventEditor('${ev.id}', 'files')" class="text-[#0A84FF] bg-transparent border-none cursor-pointer flex items-center transition hover:scale-110" title="View Notes & Files">${Icons.clip}</button>` : ''}
+                   </div>
+                </td>
+                <td class="text-gray-400 font-medium">${formatDate(ev.date)}</td>
+                <td class="text-gray-400 font-medium">${ev.time || '-'}</td>
+                <td class="text-gray-400 font-medium" title="${ev.location}">${ev.location || '-'}</td>
+                <td>
+                    <div class="text-white font-mono font-bold text-sm">$${(Number(ev.budget) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} <span class="text-[9px] font-normal text-gray-500 uppercase tracking-wider ml-1">Budg</span></div>
+                    <div class="${remainingColor} font-mono font-bold text-xs mt-1">$${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})} <span class="text-[9px] font-normal text-gray-500 uppercase tracking-wider ml-1">Left</span></div>
+                </td>
+            `;
+
+            MILESTONE_KEYS.forEach(key => {
+                const m = ev.deadlines?.[key] || {};
+                const status = getDeadlineStatus(m.date, m.completed);
+                const badgeClass = getStatusClasses(status);
+                
+                let displayDate = '-';
+                if (m.date) {
+                    const [y, mo, d] = m.date.split('-');
+                    displayDate = `${parseInt(mo)}/${parseInt(d)}`;
+                }
+                
+                const buttonAction = (isReadOnly) ? '' : `onclick="toggleDeadline('${ev.id}', '${key}')"`;
+                const cursorClass = (isReadOnly) ? 'cursor-default' : 'cursor-pointer hover:scale-105 transition-transform';
+                
+                html += `
+                    <td class="text-center">
+                        ${m.date ? `
+                            <div class="flex flex-col gap-1.5 items-center justify-center">
+                                <button ${buttonAction} class="${badgeClass} ${cursorClass} border-none font-family-inherit">
+                                    ${displayDate}
+                                </button>
+                                ${m.assignee ? `<span class="text-[9px] text-gray-500 font-bold uppercase tracking-wider">${m.assignee}</span>` : ''}
+                            </div>
+                        ` : '<span class="text-gray-600">-</span>'}
+                    </td>
+                `;
+            });
+
+            html += `
+                <td><span class="badge border border-[#FFD60A]/30 text-[#FFD60A] bg-[#FFD60A]/10">${ev.cart || '-'}</span></td>
+                <td>
+                    <select ${isReadOnly ? 'disabled' : ''} onchange="updateStatus('${ev.id}', this.value)" class="text-[10px] font-bold px-3 py-2 r-btn border-none bg-black/20 uppercase tracking-wider ${isReadOnly?'cursor-not-allowed':''}">
+                        <option ${ev.status==='Submit'?'selected':''}>Submit</option>
+                        <option ${ev.status==='Pending'?'selected':''}>Pending</option>
+                        <option ${ev.status==='Approved'?'selected':''}>Approved</option>
+                        <option ${ev.status==='Denied'?'selected':''}>Denied</option>
+                    </select>
+                </td>
+                <td class="text-right whitespace-nowrap">
+                    <div class="flex items-center justify-end gap-3">
+                        <button onclick="openEventEditor('${ev.id}')" class="text-gray-400 hover:text-[#0A84FF] bg-transparent border-none cursor-pointer flex items-center transition">${Icons.edit}</button>
+                        ${!isReadOnly ? `<button onclick="deleteEvent('${ev.id}')" class="text-gray-400 hover:text-[#FF3B30] bg-transparent border-none cursor-pointer flex items-center transition">${Icons.delete}</button>` : ''}
+                    </div>
+                </td>
+            `;
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+
+            const card = document.createElement('div');
+            card.className = "frosted r-card flex flex-col overflow-hidden";
+            const bgImage = ev.coverImage || 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23111%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3C%2Fsvg%3E';
+
+            card.innerHTML = `
+                <div class="relative h-40 w-full overflow-hidden cursor-pointer group flex-shrink-0" onclick="openEventEditor('${ev.id}')">
+                    <img src="${bgImage}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 cover-img-${ev.id}" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23111%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3C%2Fsvg%3E'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                        <h3 class="font-bold text-xl text-white leading-tight pr-4 drop-shadow-md truncate">${ev.name}</h3>
+                        ${hasFiles(ev) ? `<button onclick="event.stopPropagation(); openEventEditor('${ev.id}', 'files')" class="text-[#0A84FF] bg-black/40 backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center border border-white/10 cursor-pointer text-sm flex-shrink-0 hover:bg-black/60 transition shadow-lg" title="View Notes & Files">${Icons.clip}</button>` : ''}
+                    </div>
+                </div>
+                <div class="p-6 flex flex-col flex-1">
+                    <div class="text-sm text-gray-400 font-medium space-y-3 mb-6 cursor-pointer" onclick="openEventEditor('${ev.id}')">
+                        <p class="flex items-center gap-3"><span class="opacity-70 flex items-center">${Icons.calendar}</span> <span class="pt-0.5">${formatDate(ev.date)} ${ev.time ? `• ${ev.time}` : ''}</span></p>
+                        <p class="flex items-center gap-3 truncate" title="${ev.location}"><span class="opacity-70 flex items-center">${Icons.pin}</span> <span class="pt-0.5">${ev.location || '-'}</span></p>
+                        <div class="flex items-start gap-3 w-full mt-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                            <span class="opacity-70 flex items-center mt-0.5 text-gray-400">${Icons.dollar}</span>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center w-full mb-1">
+                                    <span class="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Budget</span>
+                                    <span class="text-white font-mono font-bold text-xs">$${(Number(ev.budget) || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div class="flex justify-between items-center w-full mb-1">
+                                    <span class="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Spent</span>
+                                    <span class="text-gray-300 font-mono font-bold text-xs">$${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                                <div class="flex justify-between items-center w-full pt-1.5 mt-1 border-t border-white/5">
+                                    <span class="text-gray-500 text-[10px] uppercase tracking-wider font-bold">Left</span>
+                                    <span class="${remainingColor} font-mono font-bold text-xs">$${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-auto pt-5 border-t border-white/10 flex justify-between items-center">
+                        <div class="flex gap-3 items-center min-w-0 flex-1 mr-2">
+                            <select ${isReadOnly ? 'disabled' : ''} onchange="updateStatus('${ev.id}', this.value)" class="text-[9px] font-bold px-2 py-1 r-btn border-none bg-black/20 uppercase tracking-wider ${isReadOnly?'cursor-not-allowed':''} flex-shrink-0">
+                                <option ${ev.status==='Submit'?'selected':''}>Submit</option>
+                                <option ${ev.status==='Pending'?'selected':''}>Pending</option>
+                                <option ${ev.status==='Approved'?'selected':''}>Approved</option>
+                                <option ${ev.status==='Denied'?'selected':''}>Denied</option>
+                            </select>
+                            <span class="text-xs text-gray-400 font-medium truncate" title="Coordinator: ${ev.contact || 'None'}">👤 ${ev.contact || 'Unassigned'}</span>
+                        </div>
+                        <div class="flex gap-4 items-center flex-shrink-0">
+                            <button onclick="openEventEditor('${ev.id}')" class="text-gray-400 hover:text-[#0A84FF] bg-transparent border-none cursor-pointer flex items-center transition">${Icons.edit}</button>
+                            ${!isReadOnly ? `<button onclick="deleteEvent('${ev.id}')" class="text-gray-400 hover:text-[#FF3B30] bg-transparent border-none cursor-pointer flex items-center transition">${Icons.delete}</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            cardView.appendChild(card);
+        });
+    }
+
+    // ==============================================================
+    // CALENDAR LOGIC
+    // ==============================================================
+    
+    window.changeMonth = function(delta) {
+        currentCalDate.setMonth(currentCalDate.getMonth() + delta);
+        renderCalendar();
+    };
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const title = document.getElementById('calendar-month-display');
+        if (!grid || !title) return;
+
+        const year = currentCalDate.getFullYear();
+        const month = currentCalDate.getMonth();
+        
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        title.innerText = `${monthNames[month]} ${year}`;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+        let html = '';
+
+        for (let i = 0; i < firstDay; i++) {
+            let d = daysInPrevMonth - firstDay + i + 1;
+            html += `<div class="cal-cell faded"><span class="text-xs font-bold text-gray-500">${d}</span></div>`;
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            
+            // 1. Find Events on this day
+            const dayEvents = eventsData.filter(e => e.date === dateStr);
+            
+            // 2. Find Deadlines on this day
+            let dayDeadlines = [];
+            eventsData.forEach(ev => {
+                MILESTONE_KEYS.forEach(k => {
+                    let m = ev.deadlines?.[k];
+                    if (m && m.date === dateStr) {
+                        dayDeadlines.push({
+                            evId: ev.id,
+                            evName: ev.name,
+                            taskName: columnLabels[k] || k,
+                            completed: m.completed
+                        });
+                    }
+                });
+            });
+            
+            let isToday = false;
+            const today = new Date();
+            if(today.getDate()===i && today.getMonth()===month && today.getFullYear()===year) isToday = true;
+
+            let cellContent = `<div class="flex justify-between items-start mb-2"><span class="text-sm font-bold ${isToday ? 'text-[#0A84FF]' : 'text-gray-300'}">${i}</span></div>`;
+            
+            // Render main events
+            dayEvents.forEach(ev => {
+                cellContent += `<div onclick="openEventEditor('${ev.id}')" class="cal-event" title="${ev.name}">${ev.name}</div>`;
+            });
+
+            // Render deadlines underneath
+            dayDeadlines.forEach(dl => {
+                let dotColor = dl.completed ? 'bg-[#34C759]' : 'bg-[#FFD60A]';
+                let strikeClass = dl.completed ? 'line-through opacity-40' : '';
+                cellContent += `
+                    <div onclick="openEventEditor('${dl.evId}')" class="cal-deadline ${strikeClass}" title="${dl.taskName} (${dl.evName})">
+                        <span class="w-1.5 h-1.5 rounded-full ${dotColor} inline-block mr-1.5 flex-shrink-0"></span>
+                        <span class="truncate">${dl.taskName} - ${dl.evName}</span>
+                    </div>
+                `;
+            });
+
+            html += `<div class="cal-cell ${isToday ? 'border-[#0A84FF]/50 bg-[#0A84FF]/5' : ''}">${cellContent}</div>`;
+        }
+
+        const totalCells = firstDay + daysInMonth;
+        const remainderCells = 7 - (totalCells % 7);
+        if (remainderCells < 7) {
+            for (let i = 1; i <= remainderCells; i++) {
+                html += `<div class="cal-cell faded"><span class="text-xs font-bold text-gray-500">${i}</span></div>`;
+            }
+        }
+
+        grid.innerHTML = html;
+    }
+
+
+    // ==============================================================
+    // 6. BUDGET DATA LOGIC
+    // ==============================================================
+
+    window.updateAllocation = function(index, value) {
+        if (isReadOnly) return;
+        budgetData[index].allocated = Number(value) || 0;
+        saveLocal(); renderBudgetView();
+    };
+    
+    window.addBudgetMonth = function() {
+        if (isReadOnly) return;
+        const name = prompt("Enter Month Name (e.g., 'July 2025'):");
+        if (name) {
+            budgetData.push({ name: name, allocated: 0 });
+            saveLocal(); renderBudgetView();
+        }
+    };
+    
+    window.removeBudgetMonth = function(index) {
+        if (isReadOnly) return;
+        if(confirm("Remove this month?")) {
+            budgetData.splice(index, 1);
+            saveLocal(); renderBudgetView();
+        }
+    };
+
+    window.editExpense = function(id) {
+        if (isReadOnly) return;
+        const exp = expensesData.find(e => e.id === id);
+        if (!exp) return;
+
+        document.getElementById('exp-name').value = exp.name || '';
+        document.getElementById('exp-cost').value = exp.cost || '';
+        document.getElementById('exp-date').value = exp.date || '';
+        document.getElementById('exp-month').value = exp.month || '';
+        document.getElementById('exp-category').value = exp.category || 'General';
+        document.getElementById('exp-event').value = exp.eventId || '';
+
+        editingExpenseId = id;
+        
+        const btnSubmit = document.getElementById('btn-submit-expense');
+        btnSubmit.innerText = 'Update Expense';
+        btnSubmit.classList.remove('bg-white/10', 'border-white/20', 'text-white');
+        btnSubmit.classList.add('bg-[#0A84FF]/20', 'border-[#0A84FF]/50', 'text-[#0A84FF]');
+        
+        document.getElementById('btn-cancel-expense').classList.remove('hidden');
+        document.getElementById('expense-form-card').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.cancelEditExpense = function() {
+        editingExpenseId = null;
+        document.getElementById('exp-name').value = '';
+        document.getElementById('exp-cost').value = '';
+        document.getElementById('exp-date').value = '';
+        
+        const btnSubmit = document.getElementById('btn-submit-expense');
+        btnSubmit.innerText = 'Submit Expense';
+        btnSubmit.classList.remove('bg-[#0A84FF]/20', 'border-[#0A84FF]/50', 'text-[#0A84FF]');
+        btnSubmit.classList.add('bg-white/10', 'border-white/20', 'text-white');
+        
+        document.getElementById('btn-cancel-expense').classList.add('hidden');
+    };
+
+    window.saveExpense = function() {
+        if (isReadOnly) return;
+        const name = document.getElementById('exp-name').value;
+        const cost = document.getElementById('exp-cost').value;
+        const date = document.getElementById('exp-date').value;
+        const month = document.getElementById('exp-month').value;
+        const eventId = document.getElementById('exp-event').value;
+        const category = document.getElementById('exp-category').value;
+
+        if (!name || !cost) return alert("Please enter Name and Cost");
+
+        if (editingExpenseId) {
+            const idx = expensesData.findIndex(e => e.id === editingExpenseId);
+            if (idx !== -1) {
+                expensesData[idx] = { ...expensesData[idx], name, cost: Number(cost), date, month, eventId, category };
+            }
+        } else {
+            expensesData.push({ id: 'exp_' + Date.now(), name, cost: Number(cost), date, month, eventId, category });
+        }
+
+        saveLocal(); 
+        renderBudgetView();
+        cancelEditExpense(); 
+    };
+
+    window.deleteExpense = function(id) {
+        if (isReadOnly) return;
+        if(!confirm("Permanently delete this expense?")) return;
+        expensesData = expensesData.filter(e => e.id !== id);
+        saveLocal(); renderBudgetView();
+    };
+
+    window.deleteAllExpenses = function() {
+        if (isReadOnly) return;
+        if(!confirm("Are you sure you want to permanently delete ALL expenses? This cannot be undone.")) return;
+        expensesData = [];
+        saveLocal(); 
+        renderBudgetView();
+    };
+
+    function parseCSV(str) {
+        let arr = [];
+        let quote = false;
+        let row = [];
+        let col = "";
+        for (let c = 0; c < str.length; c++) {
+            let cc = str[c], nc = str[c+1];
+            if (cc === '"' && quote && nc === '"') { col += cc; ++c; continue; }
+            if (cc === '"') { quote = !quote; continue; }
+            if (cc === ',' && !quote) { row.push(col.trim()); col = ""; continue; }
+            if (cc === '\n' && !quote) {
+                if (col.endsWith('\r')) col = col.slice(0, -1);
+                row.push(col.trim()); 
+                if (row.some(x => x)) arr.push(row); 
+                row = []; col = ""; continue; 
+            }
+            col += cc;
+        }
+        if (col.endsWith('\r')) col = col.slice(0, -1);
+        row.push(col.trim());
+        if(row.length > 0 && row.some(x => x)) arr.push(row);
+        return arr;
+    }
+
+    window.importExpensesCSV = function(e) {
+        if (isReadOnly) return;
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const text = event.target.result;
+            const rows = parseCSV(text);
+            if (rows.length < 2) return alert("File appears empty or invalid.");
+
+            // Map standard months
+            const monthMap = {
+                'july': 'July', 'august': 'August', 'aug': 'August', 'september': 'September', 'sep': 'September',
+                'oct': 'October', 'october': 'October', 'nov': 'November', 'november': 'November', 'dec': 'December', 'december': 'December',
+                'jan': 'January', 'january': 'January', 'feb': 'February', 'february': 'February', 'mar': 'March', 'march': 'March',
+                'apr': 'April', 'april': 'April', 'may': 'May', 'jun': 'June', 'june': 'June'
+            };
+
+            let nameIdx = -1;
+            let purposeIdx = -1;
+            let monthCols = {}; // colIdx -> 'July'
+            let firstDataRow = -1;
+
+            // 1. Scan the top 10 rows to find our column definitions (handles merged/multi-line headers)
+            for (let i = 0; i < Math.min(10, rows.length); i++) {
+                const row = rows[i];
+                for (let c = 0; c < row.length; c++) {
+                    const cell = (row[c] || '').toLowerCase().trim();
+                    if (!cell) continue;
+
+                    if (cell === 'name' && nameIdx === -1) nameIdx = c;
+                    if ((cell === 'purpose' || cell === 'description') && purposeIdx === -1) purposeIdx = c;
+                    
+                    if (monthMap[cell] && !monthCols[c]) {
+                        monthCols[c] = monthMap[cell];
+                    }
+                }
+                
+                // If we've found our core columns, mark the next row as the start of the data
+                if (nameIdx !== -1 && Object.keys(monthCols).length > 0 && firstDataRow === -1) {
+                    firstDataRow = i + 1; 
+                }
+            }
+
+            // Fallbacks in case the literal words 'Name' or 'Purpose' weren't found
+            if (nameIdx === -1) nameIdx = 0;
+            if (purposeIdx === -1) purposeIdx = 1;
+            if (firstDataRow === -1) firstDataRow = 2; // Usually safe fallback
+
+            if (Object.keys(monthCols).length === 0) {
+                e.target.value = '';
+                return alert("Could not identify any month columns (July, August, etc.) in the top rows.");
+            }
+
+            let importedCount = 0;
+
+            // 2. Process Data Rows
+            for (let i = firstDataRow; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length === 0) continue;
+                
+                let baseName = nameIdx < row.length ? (row[nameIdx] || '').trim() : '';
+                let purpose = purposeIdx < row.length ? (row[purposeIdx] || '').trim() : '';
+                
+                // Skip rows that look like duplicate headers, subtotals, or monthly sums/culture
+                const combinedRowLower = (baseName + ' ' + purpose).toLowerCase();
+                if (combinedRowLower.includes('total') || 
+                    combinedRowLower.includes('monthly sum') || 
+                    combinedRowLower.includes('6545') || 
+                    combinedRowLower.includes('campus culture') ||
+                    baseName.toLowerCase() === 'name') {
+                    continue;
+                }
+
+                if (!baseName && !purpose) continue; // Skip entirely empty identifying rows
+
+                // Use Purpose as the main expense name (ignore 'Name' column if it's just an employee name)
+                let expName = purpose || baseName || "Imported Expense";
+
+                // Auto-detect Food Category based on keywords
+                let assignedCategory = 'General';
+                const lowerExpName = expName.toLowerCase();
+                if (lowerExpName.includes('sodexo') || lowerExpName.includes('costco') || lowerExpName.includes('eegee')) {
+                    assignedCategory = 'Food';
+                }
+
+                // Try to match the 'Purpose' to an existing event in the system
+                let matchedEventId = '';
+                if (expName) {
+                    // Normalize strings for aggressive fuzzy matching (handles aliases, '&', 'and', spaces, punctuation)
+                    const normalize = (str) => {
+                        let s = str.toLowerCase();
+                        // Alias dictionary for specific events
+                        s = s.replace(/bob ross/g, 'happylittlepaintparty');
+                        s = s.replace(/eggos/g, 'eggo');
+                        s = s.replace(/legos/g, 'lego');
+                        
+                        // Standardize ampersands to "and" before stripping spaces
+                        s = s.replace(/&/g, 'and');
+                        
+                        return s.replace(/[^a-z0-9]/g, '');
+                    };
+                    const normExpName = normalize(expName);
+
+                    // Sort events by length descending to match the most specific event names first
+                    const sortedEvents = [...eventsData].sort((a, b) => b.name.length - a.name.length);
+                    // See if the imported purpose string contains any of our event names
+                    const match = sortedEvents.find(e => {
+                        const normEventName = normalize(e.name);
+                        // Prevent matching against ultra-short or empty names. 
+                        // Check both directions in case the spreadsheet is shorter than the event name, or vice versa.
+                        return normEventName.length > 2 && (normExpName.includes(normEventName) || normEventName.includes(normExpName));
+                    });
+                    if (match) {
+                        matchedEventId = match.id;
+                    }
+                }
+
+                // Check each month column for amounts
+                for (const idx in monthCols) {
+                    const monthName = monthCols[idx];
+                    let valStr = row[idx];
+                    if (!valStr) continue;
+                    
+                    // Clean value (remove $, commas, spaces, accounting parens, and any stray text)
+                    valStr = valStr.replace(/[$£€,\s()a-zA-Z]/g, ''); 
+                    let cost = parseFloat(valStr);
+
+                    if (!isNaN(cost) && cost > 0) {
+                        // Generate a generic date for this month based on the current active Fiscal Year
+                        let year = parseInt(currentYear.split('-')[0]); 
+                        const secondHalfMonths = ['January', 'February', 'March', 'April', 'May', 'June'];
+                        if (secondHalfMonths.includes(monthName)) {
+                            year = parseInt(currentYear.split('-')[1]) || (year + 1);
+                        }
+                        
+                        const monthNum = new Date(monthName + " 1, 2000").getMonth() + 1;
+                        const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+
+                        expensesData.push({
+                            id: 'exp_imp_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                            name: expName,
+                            cost: cost, // Always absolute positive cost
+                            date: dateStr,
+                            month: monthName,
+                            eventId: matchedEventId, // Links to event if match found, else generic
+                            category: assignedCategory
+                        });
+                        importedCount++;
+                    }
+                }
+            }
+
+            if (importedCount > 0) {
+                saveLocal();
+                renderBudgetView();
+                alert(`Successfully imported ${importedCount} expenses!`);
+            } else {
+                alert("No valid expense amounts found in the file. Check your spreadsheet formatting.");
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset input
+    };
+
+    window.updateAttendance = function(eventId, val) {
+        if (isReadOnly) return;
+        const ev = eventsData.find(e => e.id === eventId);
+        if(ev) { ev.attendance = val; saveLocal(); renderBudgetView(); }
+    };
+
+    function renderBudgetView() {
+        const monthsBody = document.getElementById('budget-months-body');
+        monthsBody.innerHTML = '';
+        const select = document.getElementById('exp-month');
+        select.innerHTML = ''; 
+
+        let yearlyAllocated = 0;
+        let yearlyUsed = 0;
+
+        budgetData.forEach((m, index) => {
+            const used = expensesData.filter(e => e.month === m.name).reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+            const remaining = m.allocated - used;
+            yearlyAllocated += Number(m.allocated);
+            yearlyUsed += used;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="font-bold text-white">${m.name}</td>
+                <td>
+                    <div class="flex items-center">
+                        <span class="mr-3 text-gray-500 font-bold">$</span>
+                        <input type="number" value="${m.allocated}" 
+                            ${isReadOnly ? 'disabled class="read-only-input w-full px-4 py-2 r-btn font-mono text-base"' : `onchange="updateAllocation(${index}, this.value)" class="w-full px-4 py-2 r-btn font-mono text-base"`}
+                        >
+                    </div>
+                </td>
+                <td class="font-mono font-bold text-base">$${used.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                <td class="font-mono text-right font-bold text-base ${remaining < 0 ? 'text-[#FF3B30]' : 'text-white'}">
+                    $${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                </td>
+                <td class="text-center action-col">
+                    ${!isReadOnly ? `<button onclick="removeBudgetMonth(${index})" class="text-gray-500 hover:text-[#FF3B30] bg-transparent border-none cursor-pointer p-3 leading-none flex items-center justify-center w-full transition">${Icons.delete}</button>` : ''}
+                </td>
+            `;
+            monthsBody.appendChild(tr);
+
+            const option = document.createElement('option');
+            option.value = m.name;
+            option.innerText = m.name;
+            select.appendChild(option);
+        });
+
+        document.getElementById('total-budget-display').innerText = `$${yearlyAllocated.toLocaleString()}`;
+
+        const eventSelect = document.getElementById('exp-event');
+        eventSelect.innerHTML = '<option value="">-- General Expense --</option>';
+        eventsData.forEach(ev => {
+            const opt = document.createElement('option');
+            opt.value = ev.id;
+            opt.innerText = ev.name;
+            eventSelect.appendChild(opt);
+        });
+
+        const expList = document.getElementById('expenses-list');
+        expList.innerHTML = '';
+        [...expensesData].reverse().forEach(exp => {
+            const evName = exp.eventId ? (eventsData.find(e => e.id === exp.eventId)?.name || 'Unknown Event') : 'General';
+            const div = document.createElement('div');
+            div.className = "bg-black/20 p-5 r-card border border-white/10 flex justify-between items-center";
+            div.innerHTML = `
+                <div class="flex-1 min-w-0 pr-4">
+                    <div class="font-bold text-white text-base mb-1.5 truncate" title="${exp.name}">${exp.name}</div>
+                    <div class="text-[10px] text-gray-400 font-bold tracking-wider uppercase truncate" title="${exp.date || '-'} • ${evName} • ${exp.month} • ${exp.category || 'General'}">
+                        ${exp.date || '-'} • ${evName} • ${exp.month} • ${exp.category || 'General'}
+                    </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <div class="font-mono font-bold text-white text-lg">$${Number(exp.cost).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                    <div class="flex justify-end gap-3 mt-1">
+                        ${!isReadOnly ? `<button onclick="editExpense('${exp.id}')" class="text-[#0A84FF] hover:text-white text-[10px] uppercase tracking-wider font-bold bg-transparent border-none cursor-pointer">Edit</button>` : ''}
+                        ${!isReadOnly ? `<button onclick="deleteExpense('${exp.id}')" class="text-[#FF3B30] hover:text-white text-[10px] uppercase tracking-wider font-bold bg-transparent border-none cursor-pointer">Delete</button>` : ''}
+                    </div>
+                </div>
+            `;
+            expList.appendChild(div);
+        });
+
+        const finBody = document.getElementById('event-financials-body');
+        finBody.innerHTML = '';
+        
+        const sortedFin = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
+        sortedFin.forEach(ev => {
+            const evExpenses = expensesData.filter(e => e.eventId === ev.id);
+            const totalCost = evExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+            const foodCost = evExpenses.filter(e => e.category === 'Food').reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+            const attendance = Number(ev.attendance) || 0;
+            const costPerStudent = attendance > 0 ? (totalCost / attendance) : 0;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="font-bold text-white">${ev.name}</td>
+                <td class="font-mono text-gray-300 text-base">$${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                <td class="font-mono text-gray-400 text-base">$${foodCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                <td>
+                    <input type="number" value="${attendance}" 
+                        ${isReadOnly ? 'disabled class="read-only-input w-28 px-4 py-2 r-btn text-base"' : `onchange="updateAttendance('${ev.id}', this.value)" class="w-28 px-4 py-2 r-btn text-base"`}
+                        placeholder="0">
+                </td>
+                <td class="font-mono text-[#0A84FF] font-bold text-base">$${costPerStudent.toFixed(2)}</td>
+            `;
+            finBody.appendChild(tr);
+        });
+    }
+
+    function renderPhotosView() {
+        const grid = document.getElementById('photos-grid');
+        grid.innerHTML = '';
+
+        if (eventsData.length === 0) {
+            grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-24 font-medium text-lg">No events found.</div>';
+            return;
+        }
+
+        const sorted = [...eventsData].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+        sorted.forEach(ev => {
+            const card = document.createElement('div');
+            card.className = "card frosted r-card";
+            
+            const bgImage = ev.coverImage || 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23111%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3C%2Fsvg%3E';
+            
+            card.innerHTML = `
+                <div class="card-header group">
+                    <img src="${bgImage}" class="card-img cover-img-${ev.id}" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22225%22%20viewBox%3D%220%200%20400%20225%22%3E%3Crect%20fill%3D%22%23111%22%20width%3D%22400%22%20height%3D%22225%22%2F%3E%3C%2Fsvg%3E'">
+                    <div class="card-gradient-overlay flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                        ${ev.photosLink ? `<a href="${ev.photosLink}" target="_blank" class="bg-white/20 backdrop-blur-md text-white px-6 py-3 r-pill font-bold text-sm border border-white/30 transform scale-95 group-hover:scale-100 transition shadow-xl flex items-center gap-2">${Icons.folderOpen} Open Folder</a>` : ''}
+                    </div>
+                </div>
+                <div class="card-body gap-5">
+                    <div>
+                        <h3 class="font-bold text-xl text-white truncate mb-1">${ev.name}</h3>
+                        <p class="text-xs text-gray-400 font-bold tracking-wider uppercase">${formatDate(ev.date)}</p>
+                    </div>
+                    <div class="mt-auto space-y-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-2">Cover Image</label>
+                            <label class="cursor-pointer bg-black/20 hover:bg-black/40 border border-white/10 text-white px-4 py-2.5 r-btn text-xs font-bold transition flex items-center justify-center w-full">
+                                Upload New Image
+                                <input type="file" class="hidden" accept="image/*" onchange="handleCoverImageUpload(event, '${ev.id}')" ${isReadOnly ? 'disabled' : ''}>
+                            </label>
+                            <div id="upload-status-${ev.id}" class="text-[10px] text-[#0A84FF] font-bold mt-2 text-center hidden"></div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-2">Google Drive Link</label>
+                            <div class="flex gap-2">
+                                <input type="text" value="${ev.photosLink || ''}" 
+                                    ${isReadOnly ? 'disabled class="read-only-input flex-1 px-4 py-2.5 r-btn text-sm"' : `onchange="updateEventPhoto('${ev.id}', 'photosLink', this.value)" class="flex-1 px-4 py-2.5 r-btn text-sm"`}
+                                    placeholder="Paste Drive link...">
+                                ${ev.photosLink ? `<a href="${ev.photosLink}" target="_blank" class="bg-[#0A84FF]/20 text-[#0A84FF] px-4 py-2.5 r-btn border border-[#0A84FF]/30 hover:bg-[#0A84FF]/30 flex items-center justify-center transition">${Icons.external}</a>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    window.updateEventPhoto = function(id, field, value) {
+        if (isReadOnly) return;
+        const ev = eventsData.find(e => e.id === id);
+        if (ev) {
+            ev[field] = value;
+            saveLocal();
+            if (field === 'coverImage') {
+                // Dynamically swap the image source to avoid re-rendering the whole DOM
+                document.querySelectorAll(`.cover-img-${id}`).forEach(img => {
+                    img.src = value;
+                });
+            }
+        }
+    };
+
+    // ==============================================================
+    // SYNC & CLOUD LOGIC
+    // ==============================================================
+
+    window.handleYearChange = async function(val) {
+        if (isReadOnly) return alert("Read-Only mode.");
+        
+        // 1. HARD STOP all syncs to prevent race conditions during transition
+        if (syncInterval) clearInterval(syncInterval);
+        isSyncing = false; // Kill any existing network locks
+        syncSafe = false;  // LATCH: Disallow saving empty state to cloud
+        
+        if (val === 'NEW_YEAR') {
+            const newYear = prompt("Enter new academic year (e.g., 2026-2027):");
+            if (!newYear) {
+                renderYearSelector(); 
+                syncSafe = true;
+                startCloudSync(); // Resume sync loop
+                return;
+            }
+            if (!availableYears.includes(newYear)) {
+                availableYears.push(newYear);
+                availableYears.sort();
+            }
+            currentYear = newYear;
+            
+            eventsData = [];
+            expensesData = [];
+            budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
+            
+            // Deliberate creation: Safe to save to cloud
+            syncSafe = true;
+            saveLocal(true); 
+            
+            renderYearSelector();
+            renderEvents();
+            renderBudgetView();
+            renderPhotosView();
+            renderCalendar();
+            
+            startCloudSync();
+        } else {
+            currentYear = val;
+            localStorage.setItem('arts_current_year', currentYear);
+            
+            // 2. Lock UI visually so you know it is safely fetching
+            const appCont = document.getElementById('app-container');
+            if (appCont) {
+                appCont.style.opacity = '0.5';
+                appCont.style.pointerEvents = 'none';
+            }
+            const dot = document.getElementById('sync-dot');
+            const text = document.getElementById('sync-text');
+            if (dot) dot.className = "loader";
+            if (text) text.innerText = "Downloading...";
+            
+            // DO NOT clear arrays here anymore. Let the old data stay on screen until new data arrives to prevent flashing empty arrays!
+            renderYearSelector();
+            
+            // 3. Explicitly await the fresh cloud load
+            await loadFromCloud(true);
+            
+            // 4. Force UI unlock
+            if (appCont) {
+                appCont.style.opacity = '1';
+                appCont.style.pointerEvents = 'auto';
+            }
+            if (dot) dot.className = "w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#0A84FF] shadow-[0_0_8px_rgba(10,132,255,0.5)]";
+            if (text) text.innerText = "Live";
+            
+            // 5. Resume normal background sync
+            startCloudSync();
+        }
+    };
+
+    function renderYearSelector() {
+        const sel = document.getElementById('year-selector');
+        if (!sel) return;
+        sel.innerHTML = '';
+        availableYears.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            if (y === currentYear) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        const newOpt = document.createElement('option');
+        newOpt.value = 'NEW_YEAR';
+        newOpt.textContent = '+ Create New Year...';
+        sel.appendChild(newOpt);
+    }
+    
+    function startCloudSync() {
+        updateSyncUI();
+        if (syncInterval) clearInterval(syncInterval);
+        loadFromCloud();
+        syncInterval = setInterval(loadFromCloud, 15000);
+    }
+
+    function updateSyncUI() {
+        const dot = document.getElementById('sync-dot');
+        const text = document.getElementById('sync-text');
+        if (!dot || !text || isReadOnly) return; 
+
+        if (isSyncing) {
+            dot.className = "loader";
+            text.innerText = "Syncing...";
+        } else {
+            dot.className = "w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#0A84FF] shadow-[0_0_8px_rgba(10,132,255,0.5)]";
+            text.innerText = "Live";
+        }
+    }
+
+    async function loadMasterIndex() {
+        if (!SUPABASE_URL) return;
+        try {
+            const { data } = await _supabase.from('app_state').select('settings').eq('id', 'master_index').single();
+            if (data && data.settings) {
+                if (data.settings.availableYears) {
+                    const cloudYears = data.settings.availableYears;
+                    availableYears = [...new Set([...availableYears, ...cloudYears])].sort();
+                }
+                if (data.settings.masterPasswordHash !== undefined) {
+                    masterPasswordHash = data.settings.masterPasswordHash;
+                }
+            }
+        } catch (e) { console.log("Init Master Check Failed"); }
+    }
+    
+    function saveLocal(triggerSync = true) {
+        localVersion++; // Invalidates any network payloads that are currently downloading!
+        localStorage.setItem('arts_current_year', currentYear);
+        localStorage.setItem('arts_app_bg', appBackgroundImage);
+        localStorage.setItem('arts_app_icon', appIconImage);
+        if (triggerSync) syncToCloud();
+    }
+
+    async function syncToCloud() {
+        if (!SUPABASE_URL || isReadOnly) return;
+        if (!syncSafe) return; // SAFEGUARD: Prevent accidental data wipes
+        
+        if (isSyncing) {
+            needsSync = true; // Queue the upload to run as soon as current sync finishes
+            return; 
+        }
+        
+        isSyncing = true; updateSyncUI();
+        
+        // Snapshot current state to prevent mid-sync variable changes
+        const snapYear = currentYear;
+        const snapEvents = JSON.parse(JSON.stringify(eventsData));
+        const snapExpenses = JSON.parse(JSON.stringify(expensesData));
+        const snapBudgets = JSON.parse(JSON.stringify(budgetData));
+        const snapSettings = { appName, columnLabels, milestoneOffsets, appBackgroundImage, appIconImage };
+
+        try {
+            await _supabase.from('app_state').upsert({
+                id: `state_${snapYear}`,
+                events: snapEvents,
+                expenses: snapExpenses,
+                budgets: snapBudgets,
+                settings: snapSettings
+            });
+            await _supabase.from('app_state').upsert({
+                id: 'master_index',
+                settings: { availableYears: availableYears, masterPasswordHash: masterPasswordHash }
+            });
+        } catch (e) { console.error("Sync Error", e); } 
+        finally { 
+            isSyncing = false;
+            // If another change happened while we were uploading, immediately sync again!
+            if (needsSync) {
+                needsSync = false;
+                syncToCloud();
+            } else {
+                updateSyncUI(); 
+            }
+        }
+    }
+
+    async function loadFromCloud(force = false) {
+        if (!SUPABASE_URL || isReadOnly) return;
+        if (isSyncing && !force) return;
+
+        // Remember the local version when we *started* asking the server
+        const fetchVersion = localVersion;
+
+        try {
+            const { data: indexData } = await _supabase.from('app_state').select('settings').eq('id', 'master_index').single();
+            if (indexData && indexData.settings && indexData.settings.availableYears) {
+                const cloudYears = indexData.settings.availableYears;
+                const merged = [...new Set([...availableYears, ...cloudYears])].sort();
+                if (merged.length > availableYears.length) {
+                    availableYears = merged;
+                    renderYearSelector();
+                }
+                if (indexData.settings.masterPasswordHash !== undefined) {
+                    masterPasswordHash = indexData.settings.masterPasswordHash;
+                }
+            }
+
+            const targetYear = currentYear; // Lock target year for safety
+            const { data, error } = await _supabase.from('app_state').select('*').eq('id', `state_${targetYear}`).single();
+            
+            if (error && error.code !== 'PGRST116') { 
+                console.error("Supabase Load Error:", error);
+                if (force) alert("Network interrupted. Please refresh the page to see your data.");
+                return;
+            }
+            
+            // Download succeeded or returned nothing gracefully! Mark as safe to sync.
+            syncSafe = true; 
+            
+            // RACE CONDITION GUARD: If you clicked a button while we were downloading, discard the old server data!
+            if (fetchVersion !== localVersion) {
+                return; 
+            }
+            
+            // Ensure user hasn't switched years again while we were downloading
+            if (data && currentYear === targetYear) {
+                let changed = false;
+                
+                // Parse cleanly to avoid memory leaks
+                const incomingEvents = data.events || [];
+                const incomingExpenses = data.expenses || [];
+                const incomingBudgets = data.budgets || JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
+
+                if (JSON.stringify(eventsData) !== JSON.stringify(incomingEvents)) { eventsData = incomingEvents; changed = true; }
+                if (JSON.stringify(expensesData) !== JSON.stringify(incomingExpenses)) { expensesData = incomingExpenses; changed = true; }
+                if (JSON.stringify(budgetData) !== JSON.stringify(incomingBudgets)) { budgetData = incomingBudgets; changed = true; }
+                
+                if (data.settings) {
+                    if (data.settings.appName && data.settings.appName !== appName) { appName = data.settings.appName; changed = true; }
+                    if (data.settings.columnLabels && JSON.stringify(columnLabels) !== JSON.stringify(data.settings.columnLabels)) { columnLabels = data.settings.columnLabels; changed = true; }
+                    if (data.settings.milestoneOffsets && JSON.stringify(milestoneOffsets) !== JSON.stringify(data.settings.milestoneOffsets)) { milestoneOffsets = data.settings.milestoneOffsets; changed = true; }
+                    if (data.settings.appBackgroundImage !== undefined && appBackgroundImage !== data.settings.appBackgroundImage) { 
+                        appBackgroundImage = data.settings.appBackgroundImage; 
+                        applyBackground(); 
+                        changed = true; 
+                    }
+                    if (data.settings.appIconImage !== undefined && appIconImage !== data.settings.appIconImage) {
+                        appIconImage = data.settings.appIconImage;
+                        applyIcon();
+                        changed = true;
+                    }
+                }
+
+                // If 'force' is true, ALWAYS re-render to guarantee screen matches memory
+                if ((changed || force) && isUnlocked) {
+                    renderEvents(); renderBudgetView(); renderPhotosView(); renderAppTitle(); renderTableHeader(); renderCalendar();
+                }
+            } else if (!data && force && currentYear === targetYear) {
+                // If we forced a load on a completely new year that has no data yet, empty the screen safely
+                eventsData = [];
+                expensesData = [];
+                budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_MONTHS));
+                renderEvents(); renderBudgetView(); renderPhotosView(); renderAppTitle(); renderTableHeader(); renderCalendar();
+            }
+
+        } catch (e) { 
+            console.error("Load Error", e); 
+            if (force) alert("Network interrupted. Please refresh the page to see your data.");
+        }
+    }
+
+    // ==============================================================
+    // 7. FILE UPLOADS / BACKGROUND / ICON
+    // ==============================================================
+
+    window.clearIcon = function() {
+        if (isReadOnly) return;
+        appIconImage = '';
+        applyIcon();
+        saveLocal();
+    };
+
+    function applyIcon() {
+        const iconEl = document.getElementById('app-header-icon');
+        const lockIconEl = document.getElementById('lock-app-icon');
+        const lockSvg = document.getElementById('lock-svg-icon');
+
+        if (appIconImage) {
+            if(iconEl) { iconEl.src = appIconImage; iconEl.classList.remove('hidden'); iconEl.classList.add('block'); }
+            if(lockIconEl) { lockIconEl.src = appIconImage; lockIconEl.classList.remove('hidden'); lockIconEl.classList.add('block'); }
+            if(lockSvg) { lockSvg.classList.add('hidden'); }
+        } else {
+            if(iconEl) { iconEl.src = ''; iconEl.classList.add('hidden'); iconEl.classList.remove('block'); }
+            if(lockIconEl) { lockIconEl.src = ''; lockIconEl.classList.add('hidden'); lockIconEl.classList.remove('block'); }
+            if(lockSvg) { lockSvg.classList.remove('hidden'); }
+        }
+    }
+
+    window.clearBackground = function() {
+        if (isReadOnly) return;
+        appBackgroundImage = '';
+        applyBackground();
+        saveLocal();
+    };
+
+    function applyBackground() {
+        if (appBackgroundImage) {
+            document.body.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.85)), url('${appBackgroundImage}')`;
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundPosition = 'center';
+            document.body.style.backgroundAttachment = 'fixed';
+        } else {
+            document.body.style.backgroundImage = '';
+            document.body.style.backgroundSize = '';
+            document.body.style.backgroundPosition = '';
+            document.body.style.backgroundAttachment = '';
+        }
+    }
+
+    // Helper to preload images and prevent CDN 404 race conditions
+    function preloadImage(url, onSuccess) {
+        const img = new Image();
+        img.onload = () => onSuccess(url);
+        img.onerror = () => {
+            // Give CDN a second to distribute, then fallback
+            setTimeout(() => onSuccess(url), 1500); 
+        };
+        img.src = url;
+    }
+
+    async function compressImage(file) {
+        // Prevent crashes if file.type is undefined, and skip non-images (PDFs)
+        if (!file || !file.type || !file.type.startsWith('image/')) return file; 
+        
+        return new Promise((resolve) => {
+            const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
+            
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                try {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1920;
+                    const MAX_HEIGHT = 1080;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    } else {
+                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Compress to WEBP to preserve background transparency for logos
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                            const newFile = new File([blob], newFileName, { type: 'image/webp', lastModified: Date.now() });
+                            resolve(newFile);
+                        } else {
+                            resolve(file); // Fallback if blob fails
+                        }
+                    }, 'image/webp', 0.8); 
+                } catch (err) {
+                    console.error("Compression failed:", err);
+                    resolve(file); // Fallback if canvas crashes
+                }
+            };
+
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(file); // Fallback for HEIC or unsupported camera formats
+            };
+            
+            img.src = objectUrl;
+        });
+    }
+
+    window.handleBackgroundUpload = async function(e) {
+        if (isReadOnly) return;
+        let file = e.target.files[0];
+        const statusEl = document.getElementById('bg-upload-status');
+        if (!file) return;
+
+        if (statusEl) { 
+            statusEl.innerText = "Compressing & Uploading..."; 
+            statusEl.classList.remove('hidden'); 
+            statusEl.classList.replace('text-[#FF3B30]', 'text-[#0A84FF]');
+        }
+
+        file = await compressImage(file);
+
+        if (file.size > 5 * 1024 * 1024) {
+            if (statusEl) { statusEl.innerText = "File too large (>5MB)"; statusEl.classList.remove('hidden'); statusEl.classList.replace('text-[#0A84FF]', 'text-[#FF3B30]'); }
+            e.target.value = '';
+            return;
+        }
+        
+        const url = await uploadToDrive(file, (msg) => {
+            if (statusEl) statusEl.innerText = msg;
+        });
+        
+        if (url) {
+            if (statusEl) statusEl.innerText = "Finalizing...";
+            preloadImage(url, (safeUrl) => {
+                appBackgroundImage = safeUrl;
+                applyBackground();
+                saveLocal();
+                if (statusEl) { statusEl.innerText = "Done!"; setTimeout(() => statusEl.classList.add('hidden'), 2000); }
+            });
+        }
+        e.target.value = ''; // Reset input to allow re-uploads
+    };
+
+    window.handleIconUpload = async function(e) {
+        if (isReadOnly) return;
+        let file = e.target.files[0];
+        const statusEl = document.getElementById('icon-upload-status');
+        if (!file) return;
+
+        if (statusEl) { 
+            statusEl.innerText = "Compressing & Uploading..."; 
+            statusEl.classList.remove('hidden'); 
+            statusEl.classList.replace('text-[#FF3B30]', 'text-[#0A84FF]');
+        }
+
+        file = await compressImage(file);
+
+        if (file.size > 5 * 1024 * 1024) {
+            if (statusEl) { statusEl.innerText = "File too large (>5MB)"; statusEl.classList.remove('hidden'); statusEl.classList.replace('text-[#0A84FF]', 'text-[#FF3B30]'); }
+            e.target.value = '';
+            return;
+        }
+        
+        const url = await uploadToDrive(file, (msg) => {
+            if (statusEl) statusEl.innerText = msg;
+        });
+        
+        if (url) {
+            if (statusEl) statusEl.innerText = "Finalizing...";
+            preloadImage(url, (safeUrl) => {
+                appIconImage = safeUrl;
+                applyIcon();
+                saveLocal();
+                if (statusEl) { statusEl.innerText = "Done!"; setTimeout(() => statusEl.classList.add('hidden'), 2000); }
+            });
+        }
+        e.target.value = ''; // Reset input
+    };
+
+    window.handleCoverImageUpload = async function(e, id) {
+        if (isReadOnly) return;
+        let file = e.target.files[0];
+        if (!file) return;
+
+        const statusEl = document.getElementById(`upload-status-${id}`);
+        if (statusEl) { statusEl.innerText = "Compressing & Uploading..."; statusEl.classList.remove('hidden'); }
+        
+        file = await compressImage(file);
+
+        if (file.size > 5 * 1024 * 1024) {
+            if (statusEl) { statusEl.innerText = "File too large (>5MB)"; statusEl.classList.replace('text-[#0A84FF]', 'text-[#FF3B30]'); }
+            e.target.value = '';
+            return;
+        }
+
+        const url = await uploadToDrive(file, (msg) => {
+            if (statusEl) statusEl.innerText = msg;
+        });
+        
+        if (url) {
+            if (statusEl) statusEl.innerText = "Finalizing...";
+            preloadImage(url, (safeUrl) => {
+                updateEventPhoto(id, 'coverImage', safeUrl);
+                if (statusEl) { statusEl.innerText = "Done!"; setTimeout(() => statusEl.classList.add('hidden'), 2000); }
+            });
+        }
+        e.target.value = ''; // Reset input
+    };
+
+    async function uploadToDrive(file, uiCallback) {
+        if (isReadOnly) return null;
+        return new Promise(async (resolve) => {
+            uiCallback('Uploading to Cloud...');
+            try {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+                const filePath = `uploads/${fileName}`;
+
+                const { data, error } = await _supabase.storage.from('files').upload(filePath, file);
+                
+                if (error) {
+                    console.error(error);
+                    uiCallback('Failed'); alert("Upload Failed: " + error.message); resolve(null);
+                } else {
+                    const { data: publicUrlData } = _supabase.storage.from('files').getPublicUrl(filePath);
+                    uiCallback('Done'); resolve(publicUrlData.publicUrl);
+                }
+            } catch (e) { 
+                console.error(e);
+                uiCallback('Error'); resolve(null); 
+            }
+        });
+    }
+
+    function generateFileListHTML(catId) {
+        if (!tempFiles[catId] || tempFiles[catId].length === 0) {
+            return '<div class="text-center py-8 border-2 border-dashed border-white/10 r-btn text-sm text-gray-500 font-medium">No files uploaded yet</div>';
+        }
+        return tempFiles[catId].map(f => `
+            <div class="bg-black/40 p-4 r-btn border border-white/10 flex justify-between items-center gap-3">
+                <div class="flex items-center gap-3 sm:gap-4 overflow-hidden flex-1">
+                    <span class="text-gray-400 flex items-center justify-center flex-shrink-0">${Icons.file}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-sm font-bold text-white truncate">
+                            ${f.url ? `<button type="button" onclick="openFilePreview('${f.url}', '${f.name.replace(/'/g, "\\'")}')" class="text-[#0A84FF] hover:underline text-left truncate block w-full bg-transparent border-none p-0 cursor-pointer outline-none" title="${f.name}">${f.name}</button>` : f.name}
+                        </div>
+                        <div class="text-[10px] sm:text-xs text-gray-500 font-medium mt-1 uppercase tracking-wider">${f.size || 'Drive File'} • ${f.date}</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    ${f.status === 'uploading' ? '<span class="text-xs text-[#BF5AF2] font-bold animate-pulse px-2">Uploading...</span>' : ''}
+                    ${f.status === 'error' ? '<span class="text-xs text-[#FF3B30] font-bold px-2">Failed</span>' : ''}
+                    ${!isReadOnly && f.status !== 'uploading' ? `<button type="button" onclick="renameFile('${catId}', '${f.id}')" class="text-gray-400 hover:text-white p-2 bg-transparent border-none cursor-pointer flex items-center justify-center transition outline-none" title="Rename File">${Icons.edit}</button>` : ''}
+                    ${!isReadOnly ? `<button type="button" onclick="removeFile('${catId}', '${f.id}')" class="text-[#FF3B30] hover:text-white p-2 bg-transparent border-none cursor-pointer flex items-center justify-center transition outline-none" title="Delete File">${Icons.close}</button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function updateFileListUI(catId) {
+        const listEl = document.getElementById(`file-list-${catId}`);
+        if (listEl) listEl.innerHTML = generateFileListHTML(catId);
+    }
+
+    function renderFileCategories() {
+        const categories = [
+            { id: "general", label: "Event Checklist & General" },
+            { id: "marketing", label: "Marketing Requests" },
+            { id: "amazon", label: "Amazon Orders" }
+        ];
+
+        return categories.map(cat => `
+            <div class="bg-black/20 p-6 r-card border border-white/10">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 class="font-bold text-base text-gray-300">${cat.label}</h3>
+                    ${!isReadOnly ? `<label class="cursor-pointer bg-white/10 hover:bg-white/20 border border-white/10 text-white px-5 py-2.5 r-btn text-xs font-bold transition">Upload File<input type="file" class="hidden file-input" data-cat="${cat.id}"></label>` : ''}
+                </div>
+                <div id="file-list-${cat.id}" class="space-y-3">
+                    ${generateFileListHTML(cat.id)}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderFilesTab() {
+        const container = document.getElementById('file-upload-container');
+        if(!container) return;
+        container.innerHTML = renderFileCategories();
+        attachFileHandlers();
+    }
+
+    function attachFileHandlers() {
+        document.querySelectorAll('.file-input').forEach(input => {
+            input.addEventListener('change', async (e) => {
+                const cat = e.target.dataset.cat;
+                let file = e.target.files[0];
+                if (!file) return;
+
+                const isImage = file.type && file.type.startsWith('image/');
+                
+                // Only attempt to compress if it's an actual image
+                if (isImage) {
+                    file = await compressImage(file);
+                }
+
+                // Images must be <5MB after compression. Documents can be up to 15MB.
+                const maxSize = isImage ? 5 * 1024 * 1024 : 15 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    alert(`File too large! ${isImage ? 'Images must be <5MB.' : 'Documents must be <15MB.'}`);
+                    e.target.value = '';
+                    return;
+                }
+
+                const tempId = 'f_' + Math.random().toString(36).substr(2, 9);
+                if (!tempFiles[cat]) tempFiles[cat] = [];
+                tempFiles[cat].push({ id: tempId, name: file.name, size: (file.size/1024).toFixed(1)+'KB', date: new Date().toLocaleDateString(), status: 'uploading' });
+                
+                if (editingEventId) {
+                    const ev = eventsData.find(x => x.id === editingEventId);
+                    if (ev) { ev.files = JSON.parse(JSON.stringify(tempFiles)); saveLocal(); }
+                }
+
+                updateFileListUI(cat); 
+                
+                const driveUrl = await uploadToDrive(file, () => {});
+                const target = tempFiles[cat].find(f => f.id === tempId);
+                if(target) {
+                    if(driveUrl) { target.url = driveUrl; target.status = 'done'; }
+                    else { target.status = 'error'; }
+                    
+                    if (editingEventId) {
+                        const ev = eventsData.find(x => x.id === editingEventId);
+                        if (ev) { ev.files = JSON.parse(JSON.stringify(tempFiles)); saveLocal(); }
+                    }
+                }
+                
+                updateFileListUI(cat);
+                e.target.value = ''; 
+            });
+        });
+    }
+
+    window.removeFile = async function(cat, fileId) {
+        if (isReadOnly) return;
+        if(!confirm("Permanently delete this file? This will remove it from cloud storage.")) return;
+        
+        // Find the file to get its URL before we remove it from the array
+        const fileToDel = tempFiles[cat].find(f => f.id === fileId);
+
+        // Remove from local UI array
+        tempFiles[cat] = tempFiles[cat].filter(f => f.id !== fileId);
+        
+        if (editingEventId) {
+            const ev = eventsData.find(e => e.id === editingEventId);
+            if (ev) { ev.files = JSON.parse(JSON.stringify(tempFiles)); saveLocal(); }
+        }
+        
+        updateFileListUI(cat);
+
+        // Actually delete the physical file from the Supabase bucket to free up quota
+        if (fileToDel && fileToDel.url) {
+            try {
+                const urlPath = new URL(fileToDel.url).pathname;
+                // Supabase URLs look like: /storage/v1/object/public/files/uploads/filename.jpg
+                const pathParts = urlPath.split('/public/files/');
+                if (pathParts.length > 1) {
+                    const filePath = decodeURIComponent(pathParts[1]); // Decode in case of spaces in filename
+                    const { error } = await _supabase.storage.from('files').remove([filePath]);
+                    if (error) console.error("Failed to wipe from Supabase bucket:", error.message);
+                }
+            } catch (e) {
+                console.error("Error parsing URL or deleting:", e);
+            }
+        }
+    };
+
+    window.autoSaveNotes = function(val) {
+        if (editingEventId && !isReadOnly) {
+            const ev = eventsData.find(e => e.id === editingEventId);
+            if (ev) {
+                ev.notes = val;
+                saveLocal();
+            }
+        }
+    };
+
+    // ==============================================================
+    // NEW: FILE PREVIEWER & RENAMING
+    // ==============================================================
+
+    window.openFilePreview = function(url, name) {
+        if (!url) return alert("File is not uploaded yet.");
+        
+        document.getElementById('file-preview-title').innerText = name;
+        document.getElementById('file-preview-download').href = url;
+        
+        const body = document.getElementById('file-preview-body');
+        // Show Loading state
+        body.innerHTML = '<div class="loader" style="width: 40px; height: 40px; border-width: 4px; border-top-color: #0A84FF;"></div>';
+        
+        document.getElementById('file-preview-modal').classList.remove('hidden');
+
+        // Extract extension safely
+        const extMatch = name.match(/\.([^\.]+)$/);
+        const ext = extMatch ? extMatch[1].toLowerCase() : '';
+        const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+        
+        // 1. Image Preview
+        if (imgExts.includes(ext)) {
+            const img = new Image();
+            img.className = "max-w-full max-h-full object-contain shadow-2xl rounded-xl border border-white/10";
+            img.onload = () => { body.innerHTML = ''; body.appendChild(img); };
+            img.onerror = () => { body.innerHTML = '<p class="text-[#FF3B30] font-bold text-center">Preview could not be loaded.<br><span class="text-gray-400 font-medium text-sm mt-2 block">Please use the download button instead.</span></p>'; };
+            img.src = url;
+        } 
+        // 2. PDF Preview
+        else if (ext === 'pdf') {
+            body.innerHTML = `<iframe src="${url}" class="w-full h-full rounded-xl border border-white/10 bg-white"></iframe>`;
+        } 
+        // 3. Documents (Doc, Excel) / Unknown Files
+        else {
+            body.innerHTML = `
+                <div class="text-center">
+                    <svg class="mx-auto mb-5 text-gray-500" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                    <p class="text-white font-bold text-xl mb-2">No Quick Preview Available</p>
+                    <p class="text-gray-400 text-sm mb-8 font-medium">This file format (.${ext}) cannot be previewed natively in the browser.</p>
+                    <a href="${url}" target="_blank" class="inline-flex items-center gap-3 bg-[#0A84FF] text-white hover:bg-[#0A84FF]/80 px-8 py-4 r-pill transition font-bold shadow-[0_10px_25px_rgba(10,132,255,0.3)]">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        Open / Download File
+                    </a>
+                </div>
+            `;
+        }
+    };
+
+    window.closeFilePreview = function() {
+        document.getElementById('file-preview-modal').classList.add('hidden');
+        document.getElementById('file-preview-body').innerHTML = ''; // Wipe DOM to free memory
+    };
+
+    window.renameFile = function(cat, fileId) {
+        if (isReadOnly) return;
+        const file = tempFiles[cat].find(f => f.id === fileId);
+        if (!file) return;
+
+        // Smart formatting: Extract extension so user only edits the name
+        let currentName = file.name;
+        let ext = '';
+        const lastDot = currentName.lastIndexOf('.');
+        
+        if (lastDot > 0) {
+            ext = currentName.substring(lastDot); // e.g. ".pdf"
+            currentName = currentName.substring(0, lastDot); // e.g. "Poster_Draft_1"
+        }
+
+        const newBaseName = prompt("Rename File (extension will be kept automatically):", currentName);
+        
+        // Ensure they actually typed something and didn't hit cancel
+        if (newBaseName !== null && newBaseName.trim() !== '') {
+            // Re-attach extension
+            const finalName = newBaseName.trim() + ext;
+            file.name = finalName;
+            
+            // Save state immediately
+            if (editingEventId) {
+                const ev = eventsData.find(e => e.id === editingEventId);
+                if (ev) { ev.files = JSON.parse(JSON.stringify(tempFiles)); saveLocal(); }
+            }
+            
+            // Re-render UI
+            updateFileListUI(cat);
+        }
+    };
+
+
+    // ==============================================================
+    // 8. EVENT MODAL LOGIC
+    // ==============================================================
+
+    window.openEventEditor = function(id, initialTab = 'details') {
+        editingEventId = id;
+        document.getElementById('event-modal').classList.remove('hidden');
+        
+        let data = id ? eventsData.find(e => e.id === id) : { name:'', deadlines:{} };
+        tempFiles = JSON.parse(JSON.stringify(data.files || { general:[], marketing:[], amazon:[] }));
+        
+        const evExpenses = id ? expensesData.filter(e => e.eventId === id) : [];
+        const totalCost = evExpenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+        const remaining = (Number(data.budget) || 0) - totalCost;
+        const remainingColor = remaining < 0 ? 'text-[#FF3B30]' : 'text-white';
+        
+        const disabledAttr = isReadOnly ? 'disabled' : '';
+        const roClass = isReadOnly ? 'opacity-60 cursor-not-allowed' : '';
+
+        document.getElementById('event-modal-content').innerHTML = `
+            <div id="form-tab-details" class="space-y-8">
+                <!-- DETAILS FORM -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="col-span-1 md:col-span-2"><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Event Name</label><input id="form-name" ${disabledAttr} value="${data.name||''}" class="w-full px-5 py-4 r-btn text-base ${roClass}"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Date</label><input type="date" id="form-date" ${disabledAttr} value="${data.date||''}" onchange="handleDateChange(this.value)" class="w-full px-5 py-4 r-btn text-base ${roClass}"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Time</label><input id="form-time" ${disabledAttr} value="${data.time||''}" class="w-full px-5 py-4 r-btn text-base ${roClass}"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Location</label><input id="form-location" ${disabledAttr} value="${data.location||''}" class="w-full px-5 py-4 r-btn text-base ${roClass}"></div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Budget</label>
+                        <input type="number" id="form-budget" ${disabledAttr} value="${data.budget||''}" class="w-full px-5 py-4 r-btn text-base ${roClass}">
+                        ${id ? `
+                        <div class="flex justify-between items-center mt-2 px-1">
+                            <span class="text-xs text-gray-500 font-medium">Spent: <span class="text-white font-mono">$${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></span>
+                            <span class="text-xs text-gray-500 font-medium">Left: <span class="${remainingColor} font-mono font-bold">$${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 bg-black/20 p-6 r-card border border-white/10 mt-8">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Cart</label>
+                        <select id="form-cart" ${disabledAttr} class="w-full px-4 py-3 appearance-none r-btn text-base ${roClass}">
+                            <option>Caddy</option>
+                            <option>Clubs Cart</option>
+                            <option>None</option>
+                        </select>
+                    </div>
+                    <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Event Coordinator</label><input id="form-contact" ${disabledAttr} value="${data.contact||''}" class="w-full px-4 py-3 r-btn text-base ${roClass}"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Status</label><select id="form-status" ${disabledAttr} class="w-full px-4 py-3 appearance-none r-btn text-base ${roClass}"><option>Submit</option><option>Pending</option><option>Approved</option></select></div>
+                </div>
+                <div class="border-t border-white/10 pt-8 mt-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-base font-bold text-white">Deadlines</h3>
+                        ${!isReadOnly ? `<button id="btn-autofill" onclick="forceAutoFillDeadlines()" class="text-[10px] font-bold px-4 py-2 r-pill bg-[#0A84FF]/10 text-[#0A84FF] hover:bg-[#0A84FF]/20 transition border border-[#0A84FF]/30 uppercase tracking-wider">Auto-Fill All</button>` : ''}
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                        ${MILESTONE_KEYS.map(k => {
+                            const m = data.deadlines?.[k] || {};
+                            return `<div class="bg-black/20 border border-white/10 r-btn p-4 flex flex-col justify-between"><div class="flex justify-between mb-4 items-center"><label class="text-[10px] font-bold text-gray-300 uppercase tracking-wider">${columnLabels[k]||k}</label><input type="checkbox" id="c-${k}" ${m.completed?'checked':''} ${disabledAttr} class="w-5 h-5 rounded accent-[#0A84FF] cursor-pointer"></div><div><input type="date" id="d-${k}" ${disabledAttr} value="${m.date||''}" class="w-full text-sm px-3 py-2 mb-3 r-btn ${roClass}"><input id="a-${k}" ${disabledAttr} value="${m.assignee||''}" placeholder="Assignee Name" class="w-full text-sm px-3 py-2 r-btn ${roClass}"></div></div>`
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTES & FILES TAB -->
+            <div id="form-tab-files" class="hidden space-y-8">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">Event Notes</label>
+                    <textarea id="form-notes" ${disabledAttr} onchange="autoSaveNotes(this.value)" class="w-full p-5 min-h-[300px] text-base r-btn ${roClass} resize-y" placeholder="Add specific notes, gate codes, or reminders here...">${data.notes||''}</textarea>
+                </div>
+                <div class="border-t border-white/10 pt-8">
+                      <label class="text-base font-bold text-white mb-6 block">Attachments</label>
+                      <div id="file-upload-container" class="space-y-6">
+                        <!-- Files injected here -->
+                      </div>
+                </div>
+            </div>
+        `;
+        
+        const footer = document.getElementById('event-modal-footer');
+        if(isReadOnly) footer.classList.add('hidden');
+        else footer.classList.remove('hidden');
+
+        if(data.cart) document.getElementById('form-cart').value = data.cart;
+        if(data.status) document.getElementById('form-status').value = data.status;
+        
+        renderFilesTab();
+        window.switchTab(initialTab);
+    }
+    
+    window.handleDateChange = function(val) {
+        if (!val || isReadOnly) return;
+        const eventDate = new Date(val + 'T12:00:00'); // set strictly to avoid timezone shift
+        MILESTONE_KEYS.forEach(k => {
+            const dateInput = document.getElementById(`d-${k}`);
+            if (dateInput && !dateInput.value) { // Only auto-fill if empty
+                const offsetWeeks = milestoneOffsets[k] || 0;
+                const targetDate = new Date(eventDate);
+                targetDate.setDate(targetDate.getDate() - (offsetWeeks * 7));
+                dateInput.value = targetDate.toISOString().split('T')[0];
+            }
+        });
+    };
+
+    window.forceAutoFillDeadlines = function() {
+        if (isReadOnly) return;
+        const val = document.getElementById('form-date').value;
+        if (!val) {
+            const btn = document.getElementById('btn-autofill');
+            const oldText = btn.innerText;
+            btn.innerText = "Set Date First!";
+            btn.classList.add('text-[#FF3B30]', 'border-[#FF3B30]/30', 'bg-[#FF3B30]/10');
+            setTimeout(() => {
+                btn.innerText = oldText;
+                btn.classList.remove('text-[#FF3B30]', 'border-[#FF3B30]/30', 'bg-[#FF3B30]/10');
+            }, 2000);
+            return;
+        }
+        
+        const eventDate = new Date(val + 'T12:00:00');
+        MILESTONE_KEYS.forEach(k => {
+            const dateInput = document.getElementById(`d-${k}`);
+            if (dateInput) {
+                const offsetWeeks = milestoneOffsets[k] || 0;
+                const targetDate = new Date(eventDate);
+                targetDate.setDate(targetDate.getDate() - (offsetWeeks * 7));
+                dateInput.value = targetDate.toISOString().split('T')[0];
+            }
+        });
+    };
+
+    window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
+
+    window.saveEvent = function() {
+        if (isReadOnly) return;
+        const name = document.getElementById('form-name').value;
+        if(!name) return alert("Name required");
+        
+        const ev = {
+            id: editingEventId || 'ev_'+Date.now(),
+            name, date: document.getElementById('form-date').value, time: document.getElementById('form-time').value,
+            location: document.getElementById('form-location').value, budget: Number(document.getElementById('form-budget').value),
+            cart: document.getElementById('form-cart').value, contact: document.getElementById('form-contact').value,
+            status: document.getElementById('form-status').value, notes: document.getElementById('form-notes').value, 
+            attendance: editingEventId ? (eventsData.find(e=>e.id===editingEventId)?.attendance || 0) : 0, 
+            coverImage: editingEventId ? (eventsData.find(e=>e.id===editingEventId)?.coverImage || '') : '',
+            photosLink: editingEventId ? (eventsData.find(e=>e.id===editingEventId)?.photosLink || '') : '',
+            deadlines: {}, files: tempFiles
+        };
+        
+        MILESTONE_KEYS.forEach(k => {
+            ev.deadlines[k] = {
+                date: document.getElementById(`d-${k}`).value, assignee: document.getElementById(`a-${k}`).value, completed: document.getElementById(`c-${k}`).checked
+            };
+        });
+
+        if(editingEventId) {
+            const idx = eventsData.findIndex(e=>e.id===editingEventId);
+            if(idx !== -1) eventsData[idx] = ev;
+        } else { eventsData.push(ev); }
+        
+        saveLocal(); renderEvents(); renderBudgetView(); renderCalendar(); closeEventModal();
+    };
+
+    window.toggleDeadline = function(id, k) {
+        if (isReadOnly) return;
+        const ev = eventsData.find(e=>e.id===id);
+        if(ev) {
+            if(!ev.deadlines) ev.deadlines={};
+            if(!ev.deadlines[k]) ev.deadlines[k]={};
+            ev.deadlines[k].completed = !ev.deadlines[k].completed;
+            saveLocal(); renderEvents();
+        }
+    };
+    
+    window.updateStatus = function(id, val) {
+        if (isReadOnly) return;
+        const ev = eventsData.find(e=>e.id===id);
+        if(ev) { ev.status = val; saveLocal(); }
+    }
+
+    window.deleteEvent = function(id) {
+        if (isReadOnly) return;
+        if(confirm("Delete this event? All associated data will be lost.")) {
+            eventsData = eventsData.filter(e=>e.id!==id);
+            saveLocal(); renderEvents(); renderBudgetView(); renderCalendar();
+        }
+    }
+
+    // ==============================================================
+    // 9. SETTINGS & TAB LOGIC
+    // ==============================================================
+
+    window.openSettings = function() {
+        document.getElementById('settings-modal').classList.remove('hidden');
+        document.getElementById('column-label-editor').innerHTML = MILESTONE_KEYS.map(k => `
+            <div class="flex items-center gap-3">
+                <span class="w-24 text-[10px] font-bold text-gray-300 uppercase tracking-wider truncate" title="${k}">${k}</span>
+                <input id="set-${k}" value="${columnLabels[k]}" ${isReadOnly?'disabled class="read-only-input flex-1 px-4 py-2.5 r-btn text-sm"':'class="flex-1 px-4 py-2.5 r-btn text-sm"'} placeholder="Label">
+                <input type="number" id="offset-${k}" value="${milestoneOffsets[k] !== undefined ? milestoneOffsets[k] : 1}" ${isReadOnly?'disabled class="read-only-input w-16 px-3 py-2.5 r-btn text-sm text-center"':'class="w-16 px-3 py-2.5 r-btn text-sm text-center"'} min="0" title="Weeks before event">
+            </div>
+        `).join('');
+        document.getElementById('setting-app-name').value = appName;
+        document.getElementById('setting-app-password').value = '';
+        document.getElementById('setting-app-password').placeholder = masterPasswordHash ? "•••••••• (Password is Set)" : "Leave blank to disable lock screen...";
+        
+        if (isReadOnly) {
+            document.getElementById('setting-app-name').disabled = true;
+            document.getElementById('setting-app-password').disabled = true;
+        }
+    };
+    
+    window.closeSettings = function() { document.getElementById('settings-modal').classList.add('hidden'); };
+    
+    window.saveSettings = function() {
+        if (isReadOnly) return;
+        MILESTONE_KEYS.forEach(k => {
+            columnLabels[k] = document.getElementById(`set-${k}`).value;
+            milestoneOffsets[k] = parseInt(document.getElementById(`offset-${k}`).value) || 0;
+        });
+        appName = document.getElementById('setting-app-name').value; 
+        
+        const newPass = document.getElementById('setting-app-password').value;
+        if (newPass !== '') {
+            masterPasswordHash = btoa(newPass);
+            localStorage.setItem('arts_auth_token', masterPasswordHash); 
+        } else if (document.getElementById('setting-app-password').placeholder === "Leave blank to disable lock screen...") {
+            masterPasswordHash = '';
+            localStorage.removeItem('arts_auth_token');
+        }
+
+        saveLocal(); renderTableHeader(); renderEvents(); renderAppTitle(); closeSettings();
+    };
+
+    window.switchTab = function(tab) {
+        const detailsTab = document.getElementById('form-tab-details');
+        const filesTab = document.getElementById('form-tab-files');
+        const btnDetails = document.getElementById('tab-details');
+        const btnFiles = document.getElementById('tab-files');
+        
+        if (!detailsTab || !filesTab) return;
+
+        if (tab === 'details') {
+            detailsTab.classList.remove('hidden'); filesTab.classList.add('hidden');
+            btnDetails.classList.add('border-[#0A84FF]', 'bg-[#0A84FF]/10', 'text-[#0A84FF]'); btnDetails.classList.remove('border-transparent', 'text-gray-400', 'hover:bg-black/20');
+            btnFiles.classList.remove('border-[#0A84FF]', 'bg-[#0A84FF]/10', 'text-[#0A84FF]'); btnFiles.classList.add('border-transparent', 'text-gray-400', 'hover:bg-black/20', 'hover:text-white');
+        } else {
+            detailsTab.classList.add('hidden'); filesTab.classList.remove('hidden');
+            btnFiles.classList.add('border-[#0A84FF]', 'bg-[#0A84FF]/10', 'text-[#0A84FF]'); btnFiles.classList.remove('border-transparent', 'text-gray-400', 'hover:bg-black/20');
+            btnDetails.classList.remove('border-[#0A84FF]', 'bg-[#0A84FF]/10', 'text-[#0A84FF]'); btnDetails.classList.add('border-transparent', 'text-gray-400', 'hover:bg-black/20', 'hover:text-white');
+        }
+    }
+    
+    // Ensure load
+    applyBackground(); 
+    applyIcon();
+    initApp();
+    console.log("App Loaded - Pro Edition");
+
+</script>
+</body>
+</html>
