@@ -840,12 +840,20 @@
     // ==============================================================
     
     async function initApp() {
-        await loadMasterIndex(); 
+        // Fast path: if locally cached hash matches stored token, unlock instantly
+        const cachedHash = localStorage.getItem('arts_master_hash');
+        const localAuth = localStorage.getItem('arts_auth_token');
+        if (cachedHash && localAuth && localAuth === cachedHash) {
+            unlockApp();
+            loadMasterIndex(); // validate in background
+            return;
+        }
+
+        await loadMasterIndex();
 
         if (!masterPasswordHash) {
             unlockApp();
         } else {
-            const localAuth = localStorage.getItem('arts_auth_token');
             if (localAuth === masterPasswordHash) {
                 unlockApp();
             } else {
@@ -2027,6 +2035,7 @@
                 }
                 if (data.settings.masterPasswordHash !== undefined) {
                     masterPasswordHash = data.settings.masterPasswordHash;
+                    localStorage.setItem('arts_master_hash', masterPasswordHash);
                 }
             }
         } catch (e) { console.log("Init Master Check Failed"); }
@@ -2101,6 +2110,7 @@
                 }
                 if (indexData.settings.masterPasswordHash !== undefined) {
                     masterPasswordHash = indexData.settings.masterPasswordHash;
+                    localStorage.setItem('arts_master_hash', masterPasswordHash);
                 }
             }
 
@@ -2873,10 +2883,12 @@
         const newPass = document.getElementById('setting-app-password').value;
         if (newPass !== '') {
             masterPasswordHash = btoa(newPass);
-            localStorage.setItem('arts_auth_token', masterPasswordHash); 
+            localStorage.setItem('arts_auth_token', masterPasswordHash);
+            localStorage.setItem('arts_master_hash', masterPasswordHash);
         } else if (document.getElementById('setting-app-password').placeholder === "Leave blank to disable lock screen...") {
             masterPasswordHash = '';
             localStorage.removeItem('arts_auth_token');
+            localStorage.removeItem('arts_master_hash');
         }
 
         saveLocal(); renderTableHeader(); renderEvents(); renderAppTitle(); closeSettings();
