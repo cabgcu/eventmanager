@@ -109,7 +109,7 @@ function upsertCalEvent(cal, map, key, { title, date, description, color }) {
     try {
       const calEv = cal.getEventById(map[key]);
       if (calEv) {
-        if (calEv.getTitle() !== title)       calEv.setTitle(title);
+        if (calEv.getTitle() !== title)             calEv.setTitle(title);
         if (calEv.getDescription() !== description) calEv.setDescription(description);
         if (color && calEv.getColor() !== color)    calEv.setColor(color);
         const calDate = fmtDate(calEv.getAllDayStartDate());
@@ -117,12 +117,41 @@ function upsertCalEvent(cal, map, key, { title, date, description, color }) {
         return;
       }
     } catch (_) {}
-    // Fall through — event gone, recreate
+    // Cal event gone — fall through to recreate
   }
 
+  // Deduplicate: search existing calendar events for the same ARTS tag
+  // so a fullSync() or script restart never creates a second copy
+  const mk2  = MILESTONE_KEYS.find(k => key.endsWith('_' + k));
+  const evId = mk2 ? key.slice(0, -(mk2.length + 1)) : key;
+  const tag  = mk2 ? `[ARTS:${evId}:${mk2}]` : `[ARTS:${evId}]`;
+  const existing = findExistingByTag(cal, tag);
+  if (existing) {
+    map[key] = existing.getId();
+    if (existing.getTitle() !== title)             existing.setTitle(title);
+    if (existing.getDescription() !== description) existing.setDescription(description);
+    if (color && existing.getColor() !== color)    existing.setColor(color);
+    const calDate = fmtDate(existing.getAllDayStartDate());
+    if (calDate !== date) existing.setAllDayDate(dateObj);
+    return;
+  }
+
+  // Create fresh
   const newEv = cal.createAllDayEvent(title, dateObj, { description });
   if (color) newEv.setColor(color);
+  newEv.removeAllReminders();
+  newEv.addPopupReminder(24 * 60); // 1-day reminder
   map[key] = newEv.getId();
+}
+
+// Search a ±90-day window around the event date for a calendar event
+// whose description contains our hidden tag.
+function findExistingByTag(cal, tag) {
+  const now   = new Date();
+  const start = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+  const end   = new Date(now.getFullYear() + 2, now.getMonth(), 1);
+  const all   = cal.getEvents(start, end);
+  return all.find(e => (e.getDescription() || '').includes(tag)) || null;
 }
 
 // ================================================================
