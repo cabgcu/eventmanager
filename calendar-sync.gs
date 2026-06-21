@@ -16,7 +16,7 @@
 const CONFIG = {
   SUPABASE_URL: 'https://knlmtrzxtqcmgaydwzqz.supabase.co',
   SUPABASE_KEY: 'sb_publishable_9ROUJP2trRbgsbnrCB5K9g_KXSwis3O',
-  CALENDAR_ID:  'primary',   // ← paste your Google Calendar ID here, or leave 'primary'
+  CALENDAR_ID:  '9cca84e39c265f0d5a3fbec3c4002957a71c9e7e883b8fe0748f4d64b7bb390c@group.calendar.google.com',
   YEAR:         '2025-2026', // ← change to sync a different school year
   SYNC_INTERVAL_MINUTES: 10,
 };
